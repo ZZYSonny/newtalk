@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "@types/node": "^20.8.10",
+    "@types/webrtc": "^0.0.39",
+    "@types/ws": "^8.5.8",
+    "esbuild": "^0.19.5",
+    "socket.io": "^4.7.2",
+    "socket.io-client": "^4.7.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2"
+  },
+  "scripts": {
+    "dev-front": "esbuild --target=es2022 frontend/src/index.ts --servedir=frontend/out --outdir=frontend/out/js --bundle --sourcemap",
+    "dev-back": "ts-node backend/server.ts",
+    "prod-front": "esbuild src/index.ts --outdir=out --bundle --minify",
+    "prod-back": "ts-node backend/server.ts"
+  }
+}
