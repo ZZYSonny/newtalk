@@ -44,6 +44,7 @@ export function configFromURL(prefix: string, defaultConfig: IClientConfig): ICl
     const argBitrate = param.get(`${prefix}.bitrate`);
     const argHeight = param.get(`${prefix}.height`);
     const argWidth = param.get(`${prefix}.width`);
+    const argFPS = param.get(`${prefix}.fps`);
     const argFace = param.get(`${prefix}.face`);
 
     return {
@@ -58,6 +59,7 @@ export function configFromURL(prefix: string, defaultConfig: IClientConfig): ICl
             constraints: {
                 height: argHeight ? { ideal: parseInt(argHeight) } : defaultConfig.video.constraints.height,
                 width: argWidth ? { ideal: parseInt(argWidth) } : defaultConfig.video.constraints.width,
+                frameRate: argFPS ? { ideal: parseInt(argFPS) } : defaultConfig.video.constraints.frameRate,
                 facingMode: argFace ? { ideal: argFace } : defaultConfig.video.constraints.facingMode
             }
         },

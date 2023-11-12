@@ -12,7 +12,9 @@ export const defaultClientConfig: IClientConfig = {
         codecs: ["AV1", "VP9"],
         bitrate: 8,
         constraints: {
-            height: { ideal: 1080 },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
             facingMode: { ideal: "user" },
         }
     },
