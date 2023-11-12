@@ -34,14 +34,15 @@ export function initializeWebRTCAdmin<T>(createConnection: (config: T) => Promis
     socket.on("webrtc initial answer broadcast", async (answer: RTCSessionDescriptionInit, offer: RTCSessionDescriptionInit) => {
         console.log(`[RTC][Initial][2.0][Admin] Received Client Answer in response to Offer`, answer, offer);
 
-        connection.addEventListener("icecandidate", (ev) => {
+        const onIceCandidateCB = (ev: RTCPeerConnectionIceEvent) => {
             socket.emit("webrtc initial ice", id, ev.candidate);
             console.log(`[RTC][Initial][2.3][Admin] Sent ICE`, ev.candidate);
             if(ev.candidate === null){
                 console.log(`[RTC][Initial][2.4][Admin] Removed icecandidate listener`);
-                connection.removeEventListener("icecandidate", this);
+                connection.removeEventListener("icecandidate", onIceCandidateCB);
             }
-        });
+        };
+        connection.addEventListener("icecandidate", onIceCandidateCB);
 
         await connection.setLocalDescription(offer);
         console.log(`[RTC][Initial][2.1][Admin] Set Offer`, answer);
