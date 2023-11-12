@@ -1,5 +1,5 @@
 export interface IClientICEConfig {
-    urls: string[],
+    servers: RTCIceServer[],
     transport: "all" | "relay",
     stack: "all" | "v4" | "v6"
 }
@@ -38,7 +38,6 @@ export function idFromURL(): IIdentity {
 }
 
 export function configFromURL(prefix: string, defaultConfig: IClientConfig): IClientConfig {
-    const argIceURLs = param.get(`${prefix}.urls`);
     const argIceTransport = param.get(`${prefix}.transport`);
     const argIceStack = param.get(`${prefix}.stack`);
     const argCodec = param.get(`${prefix}.codecs`);
@@ -49,7 +48,7 @@ export function configFromURL(prefix: string, defaultConfig: IClientConfig): ICl
 
     return {
         ice: {
-            urls: argIceURLs ? argIceURLs.split(",") : defaultConfig.ice.urls,
+            servers: defaultConfig.ice.servers,
             transport: argIceTransport ? argIceTransport as ("all" | "relay") : defaultConfig.ice.transport,
             stack: argIceStack ? argIceStack as ("all" | "v4" | "v6") : defaultConfig.ice.stack,
         },

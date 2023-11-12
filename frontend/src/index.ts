@@ -1,6 +1,6 @@
 import { initializeWebRTCAdmin, initializeWebRTCClient } from "./webrtc.ts";
 import { IClientConfig, IIdentity, configFromURL, idFromURL } from "./interface.ts";
-import { defaultClientConfig } from "./defaults_eg.ts";
+import { defaultClientConfig } from "./defaults_private.ts";
 
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;
@@ -13,7 +13,7 @@ async function createConnection(configFromServer: IClientConfig) {
     console.log(`[Video][0][${id.role}] Parsed overriden config`, configFromServer, config)
 
     const pc = new RTCPeerConnection({
-        iceServers: config.ice.urls.map(s => ({ urls: s })),
+        iceServers: config.ice.servers,
         iceTransportPolicy: config.ice.transport
     });
 

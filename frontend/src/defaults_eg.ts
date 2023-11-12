@@ -2,7 +2,9 @@ import { IClientConfig } from "./interface";
 
 export const defaultClientConfig: IClientConfig = {
     ice: {
-        urls: ["stun:stun.l.google.com:19302"],
+        servers: [
+            {urls: "stun:stun.l.google.com:19302"}
+        ],
         transport: "all",
         stack: "all"
     },

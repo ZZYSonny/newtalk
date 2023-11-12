@@ -1,8 +1,6 @@
 {
   "dependencies": {
     "@types/node": "^20.8.10",
-    "@types/webrtc": "^0.0.39",
-    "@types/ws": "^8.5.8",
     "esbuild": "^0.19.5",
     "socket.io": "^4.7.2",
     "socket.io-client": "^4.7.2",
