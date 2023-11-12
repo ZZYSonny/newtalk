@@ -52,10 +52,11 @@ async function createConnection(pc: RTCPeerConnection, configFromServer: IClient
 
 async function initPermission() {
     stateCaption.textContent = "Requesting Media Permission...";
-    await navigator.mediaDevices.getUserMedia({
+    const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
     });
+    stream.getTracks().forEach((track) => track.stop());
 }
 
 async function initCall() {
