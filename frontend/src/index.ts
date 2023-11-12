@@ -55,7 +55,17 @@ async function createConnection(configFromServer: IClientConfig) {
     return pc;
 }
 
+async function initPermission() {
+    stateCaption.textContent = "Requesting Media Permission...";
+    await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+    });
+}
+
 async function initCall() {
+    await initPermission();
+    stateCaption.textContent = "Parsing...";
     if (id.role === "admin") {
         const allConfig = configFromURL("all", defaultClientConfig);
         const adminConfig = configFromURL("admin", allConfig);
