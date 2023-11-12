@@ -1,31 +1,23 @@
-import { IIdentity, initializeWebRTCAdmin, initializeWebRTCClient } from "./webrtc.ts";
+import { initializeWebRTCAdmin, initializeWebRTCClient } from "./webrtc.ts";
+import { IClientConfig, IIdentity, configFromURL, idFromURL } from "./interface.ts";
+import { defaultClientConfig } from "./defaults_eg.ts";
 
-export interface IClientConfig {
-    iceServerURL: string,
-    videoCodec: string[],
-    videoBitrateMbps: number,
-    videoConstraint: MediaTrackConstraints,
-    audioConstraint: MediaTrackConstraints
-}
-
-// Parse Parameter
-const param = new URLSearchParams(window.location.search);
-const id: IIdentity = {
-    name: param.get("name")!,
-    room: param.get("room")!,
-    role: param.get("role")!,
-}
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;
 const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
 
-async function createConnection(config: IClientConfig) {
+const id = idFromURL();
+
+async function createConnection(configFromServer: IClientConfig) {
+    const config = configFromURL("override", configFromServer);
+    console.log(`[Video][0][${id.role}] Parsed overriden config`, configFromServer, config)
+
     const pc = new RTCPeerConnection({
         iceServers: [{ "urls": config.iceServerURL }],
         iceTransportPolicy: config.iceServerURL.startsWith("turn") ? "relay" : "all"
     });
 
-    console.log(`[Video][0][${id.role}] Get Local Stream`)
+    console.log(`[Video][1][${id.role}] Get Local Stream`)
     const localStream = await navigator.mediaDevices.getUserMedia({
         video: config.videoConstraint,
         audio: config.audioConstraint
@@ -36,13 +28,13 @@ async function createConnection(config: IClientConfig) {
 
     // Send Video
     localStream.getTracks().forEach((track) => {
-        console.log(`[Video][1][${id.role}] Sending RTC Track Type ${track.kind}`)
+        console.log(`[Video][2][${id.role}] Sending RTC Track Type ${track.kind}`)
         pc.addTrack(track, localStream);
     });
 
     // Receive Video
     pc.ontrack = (ev) => {
-        console.log(`[Video][2][${id.role}] Receiving RTC Track Type ${ev.track.kind}`)
+        console.log(`[Video][3][${id.role}] Receiving RTC Track Type ${ev.track.kind}`)
         if (ev.track.kind == "video") {
             remoteVideo.srcObject = ev.streams[0];
         }
@@ -65,62 +57,19 @@ async function createConnection(config: IClientConfig) {
 
 async function initCall() {
     if (id.role === "admin") {
-        const adminConfig: IClientConfig = {
-            iceServerURL: "stun:stun.l.google.com:19302",
-            videoCodec: ["AV1", "VP9"],
-            videoBitrateMbps: 8,
-            videoConstraint: {
-                height: { ideal: 1080 },
-                facingMode: { ideal: "user" },
-            },
-            audioConstraint: {
-                noiseSuppression: true,
-                echoCancellation: true,
-                //autoGainControl: true,
-                channelCount: 2,
-                sampleRate: 44100,
-            }
-        }
-        const clientConfig: IClientConfig = {
-            iceServerURL: "stun:stun.l.google.com:19302",
-            videoCodec: ["AV1", "VP9"],
-            videoBitrateMbps: 8,
-            videoConstraint: {
-                height: { ideal: 1080 },
-                facingMode: { ideal: "user" }
-            },
-            audioConstraint: {
-                noiseSuppression: true,
-                echoCancellation: true,
-                //autoGainControl: true,
-                channelCount: 2,
-                sampleRate: 44100,
-            }
-        }
+        const allConfig = configFromURL("all", defaultClientConfig);
+        const adminConfig = configFromURL("admin", allConfig);
+        const clientConfig = configFromURL("client", allConfig);
         initializeWebRTCAdmin(
-            (state) => stateCaption.innerText = state,
-            createConnection, id, adminConfig, clientConfig);
+            createConnection, id, adminConfig, clientConfig,
+            (state) => stateCaption.textContent = state
+        );
     } else if (id.role === "client") {
-        initializeWebRTCClient((state) => stateCaption.innerText = state, createConnection, id);
+        initializeWebRTCClient(
+            createConnection, id,
+            (state) => stateCaption.textContent = state
+        );
     }
 }
 
 initCall()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-let localStream: MediaStream | null = null;
-
-

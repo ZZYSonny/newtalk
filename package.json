@@ -10,6 +10,6 @@
     "typescript": "^5.2.2"
   },
   "scripts": {
-    "dev-back": "ts-node backend/dev.ts"
+    "dev": "ts-node backend/dev.ts"
   }
 }

@@ -1,16 +1,13 @@
 import { io, Socket } from "socket.io-client";
+import {IClientConfig, IIdentity} from "./interface.ts";
+
 const socket = io();
 window.addEventListener("beforeunload", (ev) => socket.close());
 
-export interface IIdentity {
-    name: string,
-    room: string,
-    role: string
-}
 
-export function initializeWebRTCAdmin<T>(updateProgress: (state: string) => void | null, createConnection: (config: T) => Promise<RTCPeerConnection>, self: IIdentity, adminConfig: T, clientConfig: T) {
+export function initializeWebRTCAdmin(createConnection: (config: IClientConfig) => Promise<RTCPeerConnection>, self: IIdentity, adminConfig: IClientConfig, clientConfig: IClientConfig, updateProgress: ((state: string) => void) | null = null) {
     let connection: RTCPeerConnection;
-    let config: T;
+    let config: IClientConfig;
 
     return new Promise((resolve, reject) => {
         socket.on("room ready broadcast", async (room: string) => {
@@ -74,12 +71,12 @@ export function initializeWebRTCAdmin<T>(updateProgress: (state: string) => void
     })
 }
 
-export function initializeWebRTCClient<T>(updateProgress: (state: string) => void, createConnection: (config: T) => Promise<RTCPeerConnection>, self: IIdentity) {
+export function initializeWebRTCClient(createConnection: (config: IClientConfig) => Promise<RTCPeerConnection>, self: IIdentity, updateProgress: ((state: string) => void) | null = null) {
     let connection: RTCPeerConnection;
-    let config: T;
+    let config: IClientConfig;
 
     return new Promise((resolve, reject) => {
-        socket.on("webrtc initial offer broadcast", async (other: IIdentity, clientConfig: T, offer: RTCSessionDescriptionInit) => {
+        socket.on("webrtc initial offer broadcast", async (other: IIdentity, clientConfig: IClientConfig, offer: RTCSessionDescriptionInit) => {
             console.clear();
 
             console.log(`[RTC][Initial][1.0][Client] Received config and offer`, clientConfig, offer);

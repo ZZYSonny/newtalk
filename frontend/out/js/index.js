@@ -3319,7 +3319,7 @@
   // frontend/src/webrtc.ts
   var socket = lookup2();
   window.addEventListener("beforeunload", (ev) => socket.close());
-  function initializeWebRTCAdmin(updateProgress, createConnection2, self2, adminConfig, clientConfig) {
+  function initializeWebRTCAdmin(createConnection2, self2, adminConfig, clientConfig, updateProgress = null) {
     let connection;
     let config;
     return new Promise((resolve, reject) => {
@@ -3378,7 +3378,7 @@
       socket.emit("room join", self2);
     });
   }
-  function initializeWebRTCClient(updateProgress, createConnection2, self2) {
+  function initializeWebRTCClient(createConnection2, self2, updateProgress = null) {
     let connection;
     let config;
     return new Promise((resolve, reject) => {
@@ -3430,33 +3430,77 @@
     });
   }
 
-  // frontend/src/index.ts
+  // frontend/src/interface.ts
   var param = new URLSearchParams(window.location.search);
-  var id = {
-    name: param.get("name"),
-    room: param.get("room"),
-    role: param.get("role")
+  function idFromURL() {
+    return {
+      name: param.get("name"),
+      room: param.get("room"),
+      role: param.get("role")
+    };
+  }
+  function configFromURL(prefix, defaultConfig) {
+    const argIce = param.get(`${prefix}.ice`);
+    const argCodec = param.get(`${prefix}.codec`);
+    const argBitrate = param.get(`${prefix}.bitrate`);
+    const argHeight = param.get(`${prefix}.height`);
+    const argWidth = param.get(`${prefix}.width`);
+    const argFace = param.get(`${prefix}.face`);
+    return {
+      iceServerURL: argIce ? argIce : defaultConfig.iceServerURL,
+      videoCodec: argCodec ? argCodec.split(",") : defaultConfig.videoCodec,
+      videoBitrateMbps: argBitrate ? parseInt(argBitrate) : defaultConfig.videoBitrateMbps,
+      videoConstraint: {
+        height: argHeight ? { ideal: parseInt(argHeight) } : defaultConfig.videoConstraint.height,
+        width: argWidth ? { ideal: parseInt(argWidth) } : defaultConfig.videoConstraint.width,
+        facingMode: argFace ? { ideal: argFace } : defaultConfig.videoConstraint.facingMode
+      },
+      audioConstraint: defaultConfig.audioConstraint
+    };
+  }
+
+  // frontend/src/defaults_eg.ts
+  var defaultClientConfig = {
+    iceServerURL: "stun:stun.l.google.com:19302",
+    videoCodec: ["AV1", "VP9"],
+    videoBitrateMbps: 8,
+    videoConstraint: {
+      height: { ideal: 1080 },
+      facingMode: { ideal: "user" }
+    },
+    audioConstraint: {
+      noiseSuppression: true,
+      echoCancellation: true,
+      autoGainControl: true,
+      channelCount: 2,
+      sampleRate: 44100
+    }
   };
+
+  // frontend/src/index.ts
   var localVideo = document.getElementById("localVideo");
   var remoteVideo = document.getElementById("remoteVideo");
   var stateCaption = document.getElementById("stateCaption");
-  async function createConnection(config) {
+  var id = idFromURL();
+  async function createConnection(configFromServer) {
+    const config = configFromURL("override", configFromServer);
+    console.log(`[Video][0][${id.role}] Parsed overriden config`, configFromServer, config);
     const pc = new RTCPeerConnection({
       iceServers: [{ "urls": config.iceServerURL }],
       iceTransportPolicy: config.iceServerURL.startsWith("turn") ? "relay" : "all"
     });
-    console.log(`[Video][0][${id.role}] Get Local Stream`);
+    console.log(`[Video][1][${id.role}] Get Local Stream`);
     const localStream = await navigator.mediaDevices.getUserMedia({
       video: config.videoConstraint,
       audio: config.audioConstraint
     });
     localVideo.srcObject = localStream;
     localStream.getTracks().forEach((track) => {
-      console.log(`[Video][1][${id.role}] Sending RTC Track Type ${track.kind}`);
+      console.log(`[Video][2][${id.role}] Sending RTC Track Type ${track.kind}`);
       pc.addTrack(track, localStream);
     });
     pc.ontrack = (ev) => {
-      console.log(`[Video][2][${id.role}] Receiving RTC Track Type ${ev.track.kind}`);
+      console.log(`[Video][3][${id.role}] Receiving RTC Track Type ${ev.track.kind}`);
       if (ev.track.kind == "video") {
         remoteVideo.srcObject = ev.streams[0];
       }
@@ -3473,47 +3517,22 @@
   }
   async function initCall() {
     if (id.role === "admin") {
-      const adminConfig = {
-        iceServerURL: "stun:stun.l.google.com:19302",
-        videoCodec: ["AV1", "VP9"],
-        videoBitrateMbps: 8,
-        videoConstraint: {
-          height: { ideal: 1080 },
-          facingMode: { ideal: "user" }
-        },
-        audioConstraint: {
-          noiseSuppression: true,
-          echoCancellation: true,
-          //autoGainControl: true,
-          channelCount: 2,
-          sampleRate: 44100
-        }
-      };
-      const clientConfig = {
-        iceServerURL: "stun:stun.l.google.com:19302",
-        videoCodec: ["AV1", "VP9"],
-        videoBitrateMbps: 8,
-        videoConstraint: {
-          height: { ideal: 1080 },
-          facingMode: { ideal: "user" }
-        },
-        audioConstraint: {
-          noiseSuppression: true,
-          echoCancellation: true,
-          //autoGainControl: true,
-          channelCount: 2,
-          sampleRate: 44100
-        }
-      };
+      const allConfig = configFromURL("all", defaultClientConfig);
+      const adminConfig = configFromURL("admin", allConfig);
+      const clientConfig = configFromURL("client", allConfig);
       initializeWebRTCAdmin(
-        (state) => stateCaption.innerText = state,
         createConnection,
         id,
         adminConfig,
-        clientConfig
+        clientConfig,
+        (state) => stateCaption.textContent = state
       );
     } else if (id.role === "client") {
-      initializeWebRTCClient((state) => stateCaption.innerText = state, createConnection, id);
+      initializeWebRTCClient(
+        createConnection,
+        id,
+        (state) => stateCaption.textContent = state
+      );
     }
   }
   initCall();
