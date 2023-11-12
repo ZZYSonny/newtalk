@@ -8,14 +8,9 @@ const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
 
 const id = idFromURL();
 
-async function createConnection(configFromServer: IClientConfig) {
+async function createConnection(pc: RTCPeerConnection, configFromServer: IClientConfig) {
     const config = configFromURL("override", configFromServer);
     console.log(`[Video][0][${id.role}] Parsed overriden config`, configFromServer, config)
-
-    const pc = new RTCPeerConnection({
-        iceServers: config.ice.servers,
-        iceTransportPolicy: config.ice.transport
-    });
 
     console.log(`[Video][1][${id.role}] Get Local Stream`)
     const localStream = await navigator.mediaDevices.getUserMedia({

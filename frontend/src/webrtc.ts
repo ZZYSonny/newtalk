@@ -1,11 +1,12 @@
 import { io, Socket } from "socket.io-client";
 import {IClientConfig, IIdentity} from "./interface.ts";
+import ipRegex from 'ip-regex';
 
 const socket = io();
 window.addEventListener("beforeunload", (ev) => socket.close());
 
 
-export function initializeWebRTCAdmin(createConnection: (config: IClientConfig) => Promise<RTCPeerConnection>, self: IIdentity, adminConfig: IClientConfig, clientConfig: IClientConfig, updateProgress: ((state: string) => void) | null = null) {
+export function initializeWebRTCAdmin(createConnection: (pc: RTCPeerConnection, config: IClientConfig) => Promise<RTCPeerConnection>, self: IIdentity, adminConfig: IClientConfig, clientConfig: IClientConfig, updateProgress: ((state: string) => void) | null = null) {
     let connection: RTCPeerConnection;
     let config: IClientConfig;
 
@@ -19,7 +20,11 @@ export function initializeWebRTCAdmin(createConnection: (config: IClientConfig) 
             console.log(`[RTC][Initial][0.1][Admin] Chosen config`, config);
 
             if (updateProgress) updateProgress("Creating Connection...");
-            connection = await createConnection(config);
+            connection = new RTCPeerConnection({
+                iceServers: config.ice.servers,
+                iceTransportPolicy: config.ice.transport
+            });        
+            await createConnection(connection, config);
             console.log(`[RTC][Initial][0.2][Admin] Prepared PeerConnection`, connection);
 
             if (updateProgress) updateProgress("Creating Offer...");
@@ -36,11 +41,25 @@ export function initializeWebRTCAdmin(createConnection: (config: IClientConfig) 
             console.log(`[RTC][Initial][2.0][Admin] Received Client Answer in response to Offer`, answer, offer);
 
             const onIceCandidateCB = (ev: RTCPeerConnectionIceEvent) => {
-                socket.emit("webrtc initial ice", self, ev.candidate);
-                console.log(`[RTC][Initial][2.3][Admin] Sent ICE`, ev.candidate);
-                if (ev.candidate === null) {
+                let skip = false;   
+                const candidate = ev.candidate;         
+                
+                if (candidate === null) {
                     console.log(`[RTC][Initial][2.4][Admin] Removed icecandidate listener`);
                     connection.removeEventListener("icecandidate", onIceCandidateCB);
+                } else {
+                    if(config.ice.stack == "v4"){
+                        skip = ipRegex.v6().test(candidate.address!)
+                    } else if(config.ice.stack == "v6"){
+                        skip = ipRegex.v4().test(candidate.address!)
+                    }
+                }
+
+                if(skip){
+                    console.log(`[RTC][Initial][2.3][Admin] Skipped ICE`, ev.candidate);   
+                }else{
+                    socket.emit("webrtc initial ice", self, ev.candidate);
+                    console.log(`[RTC][Initial][2.3][Admin] Sent ICE`, ev.candidate);    
                 }
             };
             connection.addEventListener("icecandidate", onIceCandidateCB);
@@ -71,7 +90,7 @@ export function initializeWebRTCAdmin(createConnection: (config: IClientConfig) 
     })
 }
 
-export function initializeWebRTCClient(createConnection: (config: IClientConfig) => Promise<RTCPeerConnection>, self: IIdentity, updateProgress: ((state: string) => void) | null = null) {
+export function initializeWebRTCClient(createConnection: (pc: RTCPeerConnection, config: IClientConfig) => Promise<RTCPeerConnection>, self: IIdentity, updateProgress: ((state: string) => void) | null = null) {
     let connection: RTCPeerConnection;
     let config: IClientConfig;
 
@@ -85,7 +104,11 @@ export function initializeWebRTCClient(createConnection: (config: IClientConfig)
             console.log(`[RTC][Initial][1.1][Client] Chosen config`, config);
 
             if (updateProgress) updateProgress("Creating Connection...");
-            connection = await createConnection(config);
+            connection = new RTCPeerConnection({
+                iceServers: config.ice.servers,
+                iceTransportPolicy: config.ice.transport
+            });        
+            await createConnection(connection, config);
             console.log(`[RTC][Initial][1.2][Client] Prepared PeerConnection`, connection);
 
             if (updateProgress) updateProgress("Setting Internal States...");
