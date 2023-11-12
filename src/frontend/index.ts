@@ -1,4 +1,4 @@
-import { initializeWebRTCAdmin, initializeWebRTCClient } from "./webrtc.ts";
+import { initializeWebRTCAdmin, initializeWebRTCClient } from "./webrtc";
 import { IClientConfig, IIdentity, configFromURL, idFromURL } from "../common/interface";
 import { defaultClientConfig } from "../common/defaults_private";
 
