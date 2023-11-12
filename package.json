@@ -10,9 +10,6 @@
     "typescript": "^5.2.2"
   },
   "scripts": {
-    "dev-front": "esbuild --target=es2022 frontend/src/index.ts --servedir=frontend/out --outdir=frontend/out/js --bundle --sourcemap",
-    "dev-back": "ts-node backend/server.ts",
-    "prod-front": "esbuild src/index.ts --outdir=out --bundle --minify",
-    "prod-back": "ts-node backend/server.ts"
+    "dev-back": "ts-node backend/dev.ts"
   }
 }

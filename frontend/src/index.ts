@@ -17,6 +17,7 @@ const id: IIdentity = {
 }
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;
+const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
 
 async function createConnection(config: IClientConfig) {
     const pc = new RTCPeerConnection({
@@ -69,8 +70,7 @@ async function initCall() {
             videoCodec: ["AV1", "VP9"],
             videoBitrateMbps: 8,
             videoConstraint: {
-                //height: { ideal: 1080 },
-                width: { ideal: 720 },
+                height: { ideal: 1080 },
                 facingMode: { ideal: "user" },
             },
             audioConstraint: {
@@ -86,8 +86,7 @@ async function initCall() {
             videoCodec: ["AV1", "VP9"],
             videoBitrateMbps: 8,
             videoConstraint: {
-                //height: { ideal: 1080 },
-                width: { ideal: 720 },
+                height: { ideal: 1080 },
                 facingMode: { ideal: "user" }
             },
             audioConstraint: {
@@ -98,9 +97,11 @@ async function initCall() {
                 sampleRate: 44100,
             }
         }
-        await initializeWebRTCAdmin(createConnection, id, adminConfig, clientConfig);
+        initializeWebRTCAdmin(
+            (state) => stateCaption.innerText = state,
+            createConnection, id, adminConfig, clientConfig);
     } else if (id.role === "client") {
-        await initializeWebRTCClient(createConnection, id);
+        initializeWebRTCClient((state) => stateCaption.innerText = state, createConnection, id);
     }
 }
 
