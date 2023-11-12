@@ -8,15 +8,15 @@ const PORT_HTTP = 8080;
 
 esbuild.context({
     target: "es2022",
-    entryPoints: ['frontend/src/index.ts'],
-    outdir: "frontend/out/js",
+    entryPoints: ['src/frontend/index.ts'],
+    outdir: "public/js",
     bundle: true,
     sourcemap: true,
 }).then(async ctx => {
     const { host, port } = await ctx.serve({
         host: HTTP_HOST,
         port: PORT_ESBUILD,
-        servedir: "frontend/out"
+        servedir: "public"
     })
 })
 

@@ -1,6 +1,6 @@
 import { initializeWebRTCAdmin, initializeWebRTCClient } from "./webrtc.ts";
-import { IClientConfig, IIdentity, configFromURL, idFromURL } from "./interface.ts";
-import { defaultClientConfig } from "./defaults_private.ts";
+import { IClientConfig, IIdentity, configFromURL, idFromURL } from "../common/interface";
+import { defaultClientConfig } from "../common/defaults_private";
 
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;

@@ -1,5 +1,5 @@
 import { io, Socket } from "socket.io-client";
-import {IClientConfig, IIdentity} from "./interface.ts";
+import {IClientConfig, IIdentity} from "../common/interface.ts";
 import ipRegex from 'ip-regex';
 
 const socket = io();

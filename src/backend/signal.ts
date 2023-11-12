@@ -1,11 +1,7 @@
 import * as socketIO from "socket.io";
 import * as http from "http";
 
-interface IIdentity {
-  name: string,
-  room: string,
-  role: string
-}
+import { IIdentity } from "../common/interface"
 
 export function createSocketBackend(httpServer: http.Server) {
   const io = new socketIO.Server().listen(httpServer);
