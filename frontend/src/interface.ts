@@ -1,15 +1,29 @@
+export interface IClientICEConfig {
+    urls: string[],
+    transport: "all" | "relay",
+    stack: "all" | "v4" | "v6"
+}
+
+export interface IClientVideoConfig {
+    codecs: string[],
+    bitrate: number,
+    constraints: MediaTrackConstraints,
+}
+
+export interface IClientAudioConfig {
+    constraints: MediaTrackConstraints
+}
+
 export interface IClientConfig {
-    iceServerURL: string,
-    videoCodec: string[],
-    videoBitrateMbps: number,
-    videoConstraint: MediaTrackConstraints,
-    audioConstraint: MediaTrackConstraints
+    ice: IClientICEConfig,
+    video: IClientVideoConfig,
+    audio: IClientAudioConfig,
 }
 
 export interface IIdentity {
     name: string,
     room: string,
-    role: string
+    role: "admin" | "client"
 }
 
 // Parse Parameter
@@ -19,27 +33,37 @@ export function idFromURL(): IIdentity {
     return {
         name: param.get("name")!,
         room: param.get("room")!,
-        role: param.get("role")!,
+        role: param.get("role")! as ("admin" | "client"),
     }
 }
 
 export function configFromURL(prefix: string, defaultConfig: IClientConfig): IClientConfig {
-    const argIce = param.get(`${prefix}.ice`);
-    const argCodec = param.get(`${prefix}.codec`);
+    const argIceURLs = param.get(`${prefix}.urls`);
+    const argIceTransport = param.get(`${prefix}.transport`);
+    const argIceStack = param.get(`${prefix}.stack`);
+    const argCodec = param.get(`${prefix}.codecs`);
     const argBitrate = param.get(`${prefix}.bitrate`);
     const argHeight = param.get(`${prefix}.height`);
     const argWidth = param.get(`${prefix}.width`);
     const argFace = param.get(`${prefix}.face`);
 
     return {
-        iceServerURL: argIce ? argIce : defaultConfig.iceServerURL,
-        videoCodec: argCodec ? argCodec.split(",") : defaultConfig.videoCodec,
-        videoBitrateMbps: argBitrate ? parseInt(argBitrate) : defaultConfig.videoBitrateMbps,
-        videoConstraint: {
-            height: argHeight ? { ideal: parseInt(argHeight) } : defaultConfig.videoConstraint.height,
-            width: argWidth ? { ideal: parseInt(argWidth) } : defaultConfig.videoConstraint.width,
-            facingMode: argFace ? { ideal: argFace } : defaultConfig.videoConstraint.facingMode
+        ice: {
+            urls: argIceURLs ? argIceURLs.split(",") : defaultConfig.ice.urls,
+            transport: argIceTransport ? argIceTransport as ("all" | "relay") : defaultConfig.ice.transport,
+            stack: argIceStack ? argIceStack as ("all" | "v4" | "v6") : defaultConfig.ice.stack,
         },
-        audioConstraint: defaultConfig.audioConstraint,
+        video: {
+            codecs: argCodec ? argCodec.split(",") : defaultConfig.video.codecs,
+            bitrate: argBitrate ? parseInt(argBitrate) : defaultConfig.video.bitrate,
+            constraints: {
+                height: argHeight ? { ideal: parseInt(argHeight) } : defaultConfig.video.constraints.height,
+                width: argWidth ? { ideal: parseInt(argWidth) } : defaultConfig.video.constraints.width,
+                facingMode: argFace ? { ideal: argFace } : defaultConfig.video.constraints.facingMode
+            }
+        },
+        audio: {
+            constraints: defaultConfig.audio.constraints
+        }
     }
 }

@@ -13,14 +13,14 @@ async function createConnection(configFromServer: IClientConfig) {
     console.log(`[Video][0][${id.role}] Parsed overriden config`, configFromServer, config)
 
     const pc = new RTCPeerConnection({
-        iceServers: [{ "urls": config.iceServerURL }],
-        iceTransportPolicy: config.iceServerURL.startsWith("turn") ? "relay" : "all"
+        iceServers: config.ice.urls.map(s => ({ urls: s })),
+        iceTransportPolicy: config.ice.transport
     });
 
     console.log(`[Video][1][${id.role}] Get Local Stream`)
     const localStream = await navigator.mediaDevices.getUserMedia({
-        video: config.videoConstraint,
-        audio: config.audioConstraint
+        video: config.video.constraints,
+        audio: config.audio.constraints
     });
 
     // Set Local Video
@@ -43,13 +43,13 @@ async function createConnection(configFromServer: IClientConfig) {
     // Set Preferred video codec
     const videoTransceiver = pc.getTransceivers().find((s) => (s.sender.track ? s.sender.track.kind === 'video' : false))!;
     const supportVideoCodec = RTCRtpSender.getCapabilities('video')!.codecs;
-    const selectedVideoCodec = config.videoCodec.map((name) => supportVideoCodec.filter((codec) => codec.mimeType.includes(name))).flat();
+    const selectedVideoCodec = config.video.codecs.map((name) => supportVideoCodec.filter((codec) => codec.mimeType.includes(name))).flat();
     videoTransceiver.setCodecPreferences(selectedVideoCodec);
 
     // Set Preferred bitrate
     const videoSender = videoTransceiver.sender;
     const videoParameters = videoSender.getParameters();
-    videoParameters.encodings[0].maxBitrate = config.videoBitrateMbps * 1000000;
+    videoParameters.encodings[0].maxBitrate = config.video.bitrate * 1000000;
     videoSender.setParameters(videoParameters);
 
     return pc;
