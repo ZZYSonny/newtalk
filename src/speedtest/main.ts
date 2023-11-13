@@ -1,3 +1,4 @@
+import nodeDatachannel from 'node-datachannel';
 import nodeDatachannelPolyfill from 'node-datachannel/polyfill';
 import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
 import { defaultClientConfig, defaultServerURL } from "./defaults_private"
@@ -68,7 +69,10 @@ async function initialPerf(config: IClientConfig, role: "admin" | "client") {
             iceTransportPolicy: config.ice.transport
         });
         if(role == "admin"){
-            const ch = pc.createDataChannel("test");
+            const ch = pc.createDataChannel("test", {
+                ordered: false,
+                maxRetransmits: 0
+            });
             ch.addEventListener("open", (ev) => { channelPerf(pc, ch, config.video.bitrate);})    
         } else {
             pc.ondatachannel = (ev) => {channelPerf(pc, ev.channel, config.video.bitrate);}
