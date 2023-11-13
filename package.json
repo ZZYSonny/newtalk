@@ -1,7 +1,9 @@
 {
   "dependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^20.8.10",
     "esbuild": "^0.19.5",
+    "express": "^4.18.2",
     "ip-regex": "^5.0.0",
     "node-datachannel": "^0.5.1",
     "socket.io": "^4.7.2",
@@ -11,6 +13,7 @@
   },
   "scripts": {
     "dev": "tsx src/backend/dev.ts",
+    "prod": "tsx src/backend/prod.ts",
     "speed-admin": "tsx src/speedtest/main.ts --admin",
     "speed-client": "tsx src/speedtest/main.ts --client"
   }

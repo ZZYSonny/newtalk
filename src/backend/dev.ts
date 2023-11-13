@@ -11,7 +11,7 @@ esbuild.context({
     entryPoints: ['src/frontend/index.ts'],
     outdir: "public/js",
     bundle: true,
-    sourcemap: true,
+    sourcemap: true
 }).then(async ctx => {
     const { host, port } = await ctx.serve({
         host: HTTP_HOST,
@@ -20,7 +20,7 @@ esbuild.context({
     })
 })
 
-const server = http.createServer();
+const server = http.createServer().listen(PORT_HTTP, HTTP_HOST);
 server.on('request', (req, res) => {
     var connector = http.request({
         host: HTTP_HOST,
@@ -34,6 +34,5 @@ server.on('request', (req, res) => {
 
     req.pipe(connector);
 });
-server.listen(PORT_HTTP);
 
 createSocketBackend(server);
