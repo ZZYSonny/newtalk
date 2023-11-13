@@ -18,9 +18,6 @@ esbuild.buildSync({
     outdir: "public/js",
     bundle: true,
     minify: true,
-    minifyIdentifiers: true,
-    minifySyntax: true,
-    minifyWhitespace: true,
     treeShaking: true
 })
 
