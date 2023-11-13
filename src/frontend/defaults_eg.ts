@@ -1,4 +1,4 @@
-import { IClientConfig } from "./interface";
+import { IClientConfig } from "../common/interface";
 
 export const defaultClientConfig: IClientConfig = {
     ice: {

@@ -1,6 +1,6 @@
 import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
 import { IClientConfig, IIdentity, configFromURL, idFromURL } from "../common/interface";
-import { defaultClientConfig } from "../common/defaults_private";
+import { defaultClientConfig } from "./defaults_private";
 
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;

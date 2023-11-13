@@ -21,10 +21,14 @@ function cbInitialIceCandidate(connection: RTCPeerConnection, self: IIdentity, c
             console.info(`[ICE][Initial][${self.role}] Removed ICE Listener.`);
             connection.onicecandidate = null;
         } else {
-            let flag =
-                config.ice.stack == "v4" ? ipRegex.v4().test(ev.candidate.address!) :
-                    config.ice.stack == "v6" ? ipRegex.v6().test(ev.candidate.address!) :
-                        true;
+            let flag = true;
+            if (config.ice.transport == "all") {
+                if (config.ice.stack == "v4") {
+                    flag = ipRegex.v4().test(ev.candidate.address!);
+                } else if (config.ice.stack == "v6") {
+                    flag = ipRegex.v6().test(ev.candidate.address!);
+                }
+            }
             if (flag) {
                 socket.emit("webrtc initial ice", self, ev.candidate);
                 console.info(`[ICE][Initial][${self.role}] Sent ICE`, ev.candidate);
@@ -66,7 +70,7 @@ export function initializeWebRTCAdmin(createConnection: (config: IClientConfig) 
             connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
             await connection.setLocalDescription(offer);
             socket.emit("webrtc initial offer", self, clientConfig, offer);
-            console.info(`[RTC][Initial][0.3][Admin] Created, Set and Sent Offer`, offer);    
+            console.info(`[RTC][Initial][0.3][Admin] Created, Set and Sent Offer`, offer);
 
             if (updateProgress) updateProgress("Waiting for Answer...");
             resolve(connection);
