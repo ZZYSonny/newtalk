@@ -11,6 +11,7 @@
   },
   "scripts": {
     "dev": "tsx src/backend/dev.ts",
-    "speed": "tsx src/speedtest/webrtc.ts"
+    "speed-admin": "tsx src/speedtest/main.ts --admin",
+    "speed-client": "tsx src/speedtest/main.ts --client"
   }
 }

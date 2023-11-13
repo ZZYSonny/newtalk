@@ -1,19 +1,55 @@
 import nodeDatachannelPolyfill from 'node-datachannel/polyfill';
 import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
-import { defaultClientConfig, defaultServerURL } from "../common/defaults_eg"
+import { defaultClientConfig, defaultServerURL } from "../common/defaults_private"
 import { IClientConfig, IIdentity } from '../common/interface';
 
 // Disable webrtc.ts logging
 console.info = (...args) =>{};
 
 
+const target_mbps = 2;
 
-async function channelPerf(channel: RTCDataChannel) {
+async function channelPerf(connection: nodeDatachannelPolyfill.RTCPeerConnection, channel: RTCDataChannel) {
+    const candidates = connection.sctp?.transport.iceTransport.getSelectedCandidatePair();
     console.log("Channel Opened")
-    channel.send("HelloWorld");
-    channel.onmessage = (ev) => {
-        console.log(ev.data);
+    if(candidates){
+        console.log("      ", candidates.local!.candidate);
+        console.log(" <==> ", candidates.remote!.candidate);
     }
+    
+    let cur = 0;
+    let cntReceive = 0;
+    let cntError = 0;
+    const bytes_per_message = 24*1024;
+    const message_per_second = target_mbps*1024*1024/bytes_per_message;
+    const msg = new Uint8Array(bytes_per_message);
+
+    channel.onmessage = (ev) => {
+        cntReceive += 1;
+    }
+    channel.onerror = (ev) => {
+        cntError += 1;
+    }
+    const timer1 = setInterval(()=>{
+        channel.send(msg);
+    }, 1000/message_per_second)
+    const timer2 = setInterval(()=>{
+        const speed = bytes_per_message * cntReceive / 1024 / 1024;
+        console.log(`${cur}.00-${cur+1}.00\t${cntReceive} recv\t${cntError} err\t${speed} Mbps`)
+        cur+=1
+        cntReceive = 0
+        cntError = 0
+        if(cur == 10){
+            channel.close()
+            connection.close()
+            clearInterval(timer1)
+            clearInterval(timer2)
+        }
+    }, 1000)
+    channel.onclose = (()=>{
+        clearInterval(timer1);
+        clearInterval(timer2);
+    })
 }
 
 async function initialPerf(config: IClientConfig, role: "admin" | "client") {
@@ -30,9 +66,9 @@ async function initialPerf(config: IClientConfig, role: "admin" | "client") {
         });
         if(role == "admin"){
             const ch = pc.createDataChannel("test");
-            ch.addEventListener("open", (ev) => { channelPerf(ch);})    
+            ch.addEventListener("open", (ev) => { channelPerf(pc, ch);})    
         } else {
-            pc.ondatachannel = (ev) => {channelPerf(ev.channel);}
+            pc.ondatachannel = (ev) => {channelPerf(pc, ev.channel);}
         }
         return pc as any;
     }
@@ -43,5 +79,5 @@ async function initialPerf(config: IClientConfig, role: "admin" | "client") {
     else initializeWebRTCClient(createConnection, self, console.log);
 }
 
-if(process.argv.includes("--admin")) initialPerf(defaultClientConfig, "admin");
-else if(process.argv.includes("--client")) initialPerf(defaultClientConfig, "client");
+const role = process.argv.includes("--admin") ? "admin" : "client"
+initialPerf(defaultClientConfig, role);
