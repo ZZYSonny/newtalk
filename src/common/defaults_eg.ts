@@ -28,3 +28,5 @@ export const defaultClientConfig: IClientConfig = {
         }
     }
 }
+
+export const defaultServerURL = "http://localhost:8080"

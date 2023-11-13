@@ -1,4 +1,4 @@
-import { initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
+import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
 import { IClientConfig, IIdentity, configFromURL, idFromURL } from "../common/interface";
 import { defaultClientConfig } from "../common/defaults_private";
 
@@ -66,17 +66,20 @@ async function initPermission() {
 
 async function initCall() {
     await initPermission();
-    stateCaption.textContent = "Parsing...";
+    stateCaption.textContent = "Connecting to Server...";
+    await initializeSocket(null);
+
     if (id.role === "admin") {
+        stateCaption.textContent = "Parsing Config...";
         const allConfig = configFromURL("all", defaultClientConfig);
         const adminConfig = configFromURL("admin", allConfig);
         const clientConfig = configFromURL("client", allConfig);
-        initializeWebRTCAdmin(
+        const connection = await initializeWebRTCAdmin(
             createConnection, id, adminConfig, clientConfig,
             (state) => stateCaption.textContent = state
         );
     } else if (id.role === "client") {
-        initializeWebRTCClient(
+        const connection = await initializeWebRTCClient(
             createConnection, id,
             (state) => stateCaption.textContent = state
         );
