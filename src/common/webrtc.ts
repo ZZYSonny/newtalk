@@ -63,6 +63,7 @@ export function initializeWebRTCAdmin(createConnection: (config: IClientConfig) 
             if (updateProgress) updateProgress("Creating Connection...");
             if (connection) connection.close();
             connection = await createConnection(config);
+            resolve(connection);
             console.info(`[RTC][Initial][0.2][Admin] Prepared PeerConnection`, connection);
 
             if (updateProgress) updateProgress("Creating Offer...");
@@ -73,7 +74,6 @@ export function initializeWebRTCAdmin(createConnection: (config: IClientConfig) 
             console.info(`[RTC][Initial][0.3][Admin] Created, Set and Sent Offer`, offer);
 
             if (updateProgress) updateProgress("Waiting for Answer...");
-            resolve(connection);
         })
 
         socket.on("webrtc initial answer broadcast", async (other: IIdentity, answer: RTCSessionDescriptionInit, offer: RTCSessionDescriptionInit) => {
@@ -129,8 +129,8 @@ export function initializeWebRTCClient(createConnection: (config: IClientConfig)
             if (updateProgress) updateProgress("Creating Connection...");
             if (connection) connection.close();
             connection = await createConnection(config);
-            console.info(`[RTC][Initial][1.2][Client] Prepared PeerConnection`, connection);
             resolve(connection);
+            console.info(`[RTC][Initial][1.2][Client] Prepared PeerConnection`, connection);
 
             if (updateProgress) updateProgress("Setting Internal States...");
 
