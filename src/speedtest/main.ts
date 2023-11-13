@@ -21,9 +21,9 @@ function createConnection(config: IClientConfig){
 async function main(){
     await initializeSocket(defaultServerURL);
     if(process.argv.includes("--admin")){
-        await initialPerfAdmin(defaultClientConfig, createConnection, console.log);
+        await initialPerfAdmin(defaultClientConfig, createConnection, console.log, console.log);
     } else {
-        await initialPerfClient(createConnection, console.log);
+        await initialPerfClient(createConnection, console.log, console.log);
     }
 }
 

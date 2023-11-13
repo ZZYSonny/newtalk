@@ -2,14 +2,14 @@ import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from 
 import { IClientConfig, IIdentity } from '../common/interface';
 
 
-function channelPerf(connection: RTCPeerConnection, channel: RTCDataChannel, mbps: number) {
+function channelPerf(connection: RTCPeerConnection, channel: RTCDataChannel, mbps: number, report: (s: string) => void) {
     const candidates = connection.sctp?.transport.iceTransport.getSelectedCandidatePair();
     console.log("Channel Opened")
     if (candidates) {
         console.log("      ", candidates.local!.candidate);
         console.log(" <==> ", candidates.remote!.candidate);
     }
-    console.log("time\t\tsend\tmbps\trecv\tmbps\terror\tbuffer")
+    report("time\t\tsend\tmbps\trecv\tmbps\terror\tbuffer")
 
     let cur = 0;
     let cntSend = 0;
@@ -32,7 +32,7 @@ function channelPerf(connection: RTCPeerConnection, channel: RTCDataChannel, mbp
     const timer2 = setInterval(() => {
         const sendSpeed = bytes_per_message * cntSend / 1024 / 1024;
         const recvSpeed = bytes_per_message * cntReceive / 1024 / 1024;
-        console.log(`${cur.toFixed(2)}-${(cur + 1).toFixed(2)}\t${cntSend}\t${sendSpeed.toFixed(3)}\t${cntReceive}\t${recvSpeed.toFixed(3)}\t${cntError}\t${channel.bufferedAmount}`)
+        report(`${cur.toFixed(2)}-${(cur + 1).toFixed(2)}\t${cntSend}\t${sendSpeed.toFixed(3)}\t${cntReceive}\t${recvSpeed.toFixed(3)}\t${cntError}\t${channel.bufferedAmount}`)
         cur += 1
         cntSend = 0
         cntReceive = 0
@@ -51,30 +51,30 @@ function channelPerf(connection: RTCPeerConnection, channel: RTCDataChannel, mbp
     })
 }
 
-export async function initialPerfAdmin(bothConfig: IClientConfig, createConnection: (config: IClientConfig) => RTCPeerConnection, update: null | ((s: string) => void)) {
+export async function initialPerfAdmin(bothConfig: IClientConfig, createConnection: (config: IClientConfig) => RTCPeerConnection, progress: null | ((s: string) => void), report: (s: string) => void) {
     await initializeWebRTCAdmin(async (config) => {
         const pc = createConnection(config);
         const ch = pc.createDataChannel("test", {
             ordered: false,
             maxRetransmits: 0
         });
-        ch.addEventListener("open", (ev) => { channelPerf(pc, ch, config.video.bitrate); })
+        ch.addEventListener("open", (ev) => { channelPerf(pc, ch, config.video.bitrate, report); })
         return pc;
     }, {
         name: "admin",
         role: "admin",
         room: "speed"
-    }, bothConfig, bothConfig, update);
+    }, bothConfig, bothConfig, progress);
 }
 
-export async function initialPerfClient(createConnection: (config: IClientConfig) => RTCPeerConnection, update: null | ((s: string) => void)) {
+export async function initialPerfClient(createConnection: (config: IClientConfig) => RTCPeerConnection, progress: null | ((s: string) => void), report: (s: string) => void) {
     await initializeWebRTCClient(async (c) => {
         const pc = createConnection(c);
-        pc.ondatachannel = (ev) => {channelPerf(pc, ev.channel, c.video.bitrate);}
+        pc.ondatachannel = (ev) => {channelPerf(pc, ev.channel, c.video.bitrate, report);}
         return pc;
     }, {
         name: "admin",
         role: "admin",
         room: "speed"
-    }, update);
+    }, progress);
 }

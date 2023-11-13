@@ -4,6 +4,7 @@ import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from 
 import { defaultClientConfig } from "./defaults_private";
 
 const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
+const speedOutput = document.getElementById("speedOutput") as HTMLSpanElement;
 
 const id = idFromURL();
 
@@ -22,11 +23,15 @@ async function initCall() {
         stateCaption.textContent = "Parsing Config...";
         const allConfig = configFromURL("all", defaultClientConfig);
         const connection = await initialPerfAdmin (
-            allConfig, createConnection, (s) => stateCaption.textContent = s
+            allConfig, createConnection, 
+            (s) => stateCaption.textContent = s,
+            (s) => speedOutput.textContent += s
         );
     } else if (id.role === "client") {
         const connection = await initialPerfClient(
-            createConnection, (s) => stateCaption.textContent = s
+            createConnection,
+            (s) => stateCaption.textContent = s,
+            (s) => speedOutput.innerHTML += s.replaceAll("\t","&emsp;&emsp;") + "<br>"
         );
     }
 }
