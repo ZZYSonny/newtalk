@@ -5,22 +5,34 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Chrome",
+            "name": "Web",
             "request": "launch",
             "type": "chrome",
             "url": "http://localhost:8080/?room=test&role=admin&name=admin",
-            "webRoot": "${workspaceFolder}/frontend/out"
+            "webRoot": "${workspaceFolder}/public/js"
         },
         {
-        "type": "node",
-        "request": "launch",
-        "name": "Launch Program",
-        "runtimeArgs": [
-            "-r",
-            "ts-node/register"
-        ],
-        "args": [
-            "${workspaceFolder}/backend/server.ts"
-        ]
-    }],
+            "type": "node",
+            "request": "launch",
+            "name": "Server",
+            "runtimeArgs": [
+                "--import",
+                "tsx"
+            ],
+            "program": "src/backend/dev.ts"
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Speed",
+            "runtimeArgs": [
+                "--import",
+                "tsx"
+            ],
+            "program": "src/speedtest/main.ts",
+            "args": [
+                "--client"
+            ]
+        }
+    ],
 }
