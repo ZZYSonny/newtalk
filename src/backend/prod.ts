@@ -11,10 +11,16 @@ const SERVE_DIR = "public"
 if(fs.existsSync("public/js/index.js.map")){
     fs.rmSync("public/js/index.js.map");
 }
+if(fs.existsSync("public/js/test.js.map")){
+    fs.rmSync("public/js/test.js.map");
+}
 
 esbuild.buildSync({
     target: "es2022",
-    entryPoints: ['src/frontend/index.ts'],
+    entryPoints: [
+        'src/frontend/index.ts',
+        'src/frontend/test.ts'
+    ],
     outdir: "public/js",
     bundle: true,
     minify: true,

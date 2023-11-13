@@ -8,7 +8,10 @@ const PORT_HTTP = 8080;
 
 esbuild.context({
     target: "es2022",
-    entryPoints: ['src/frontend/index.ts'],
+    entryPoints: [
+        'src/frontend/index.ts',
+        'src/frontend/test.ts'
+    ],
     outdir: "public/js",
     bundle: true,
     sourcemap: true
