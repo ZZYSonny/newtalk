@@ -6,7 +6,7 @@ import { IClientConfig, IIdentity } from '../common/interface';
 
 // Disable webrtc.ts logging
 console.info = (...args) =>{};
-
+nodeDatachannel.initLogger("Warning")
 
 async function channelPerf(connection: nodeDatachannelPolyfill.RTCPeerConnection, channel: RTCDataChannel, mbps: number) {
     const candidates = connection.sctp?.transport.iceTransport.getSelectedCandidatePair();
