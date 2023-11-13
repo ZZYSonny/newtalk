@@ -14,9 +14,10 @@ async function channelPerf(connection: nodeDatachannelPolyfill.RTCPeerConnection
         console.log("      ", candidates.local!.candidate);
         console.log(" <==> ", candidates.remote!.candidate);
     }
-    console.log("time\t\tsend\trecv\terr\tmbps")
+    console.log("time\t\tsend\tmbps\trecv\tmbps\terror\tbuffer")
     
     let cur = 0;
+    let cntSend = 0;
     let cntReceive = 0;
     let cntError = 0;
     const bytes_per_message = 15*1024;
@@ -31,11 +32,14 @@ async function channelPerf(connection: nodeDatachannelPolyfill.RTCPeerConnection
     }
     const timer1 = setInterval(()=>{
         channel.send(msg);
+        cntSend += 1;
     }, 1000/message_per_second)
     const timer2 = setInterval(()=>{
-        const speed = bytes_per_message * cntReceive / 1024 / 1024;
-        console.log(`${cur.toFixed(2)}-${(cur+1).toFixed(2)}\t${message_per_second.toFixed(0)}\t${cntReceive}\t${cntError}\t${speed}`)
+        const sendSpeed = bytes_per_message * cntSend / 1024 / 1024;
+        const recvSpeed = bytes_per_message * cntReceive / 1024 / 1024;
+        console.log(`${cur.toFixed(2)}-${(cur+1).toFixed(2)}\t${cntSend}\t${sendSpeed.toFixed(3)}\t${cntReceive}\t${recvSpeed.toFixed(3)}\t${cntError}\t${channel.bufferedAmount}`)
         cur+=1
+        cntSend = 0
         cntReceive = 0
         cntError = 0
         if(cur == 10){
