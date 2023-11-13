@@ -1,4 +1,4 @@
 node_modules
-frontend/out/js/*
+public/js/*
 *_private.ts
 .zzy

@@ -1,4 +1,4 @@
-import { initializeWebRTCAdmin, initializeWebRTCClient } from "./webrtc";
+import { initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
 import { IClientConfig, IIdentity, configFromURL, idFromURL } from "../common/interface";
 import { defaultClientConfig } from "../common/defaults_private";
 
@@ -8,9 +8,14 @@ const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
 
 const id = idFromURL();
 
-async function createConnection(pc: RTCPeerConnection, configFromServer: IClientConfig) {
+async function createConnection(configFromServer: IClientConfig) {
     const config = configFromURL("override", configFromServer);
     console.log(`[Video][0][${id.role}] Parsed overriden config`, configFromServer, config)
+
+    const pc = new RTCPeerConnection({
+        iceServers: config.ice.servers,
+        iceTransportPolicy: config.ice.transport
+    });
 
     console.log(`[Video][1][${id.role}] Get Local Stream`)
     const localStream = await navigator.mediaDevices.getUserMedia({
