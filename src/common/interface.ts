@@ -7,6 +7,7 @@ export interface IClientICEConfig {
 export interface IClientVideoConfig {
     codecs: string[],
     bitrate: number,
+    source: "camera" | "screen",
     constraints: MediaTrackConstraints,
 }
 
@@ -46,6 +47,7 @@ export function configFromURL(prefix: string, defaultConfig: IClientConfig): ICl
     const argWidth = param.get(`${prefix}.width`);
     const argFPS = param.get(`${prefix}.fps`);
     const argFace = param.get(`${prefix}.face`);
+    const argSource = param.get(`${prefix}.source`);
 
     return {
         ice: {
@@ -56,6 +58,7 @@ export function configFromURL(prefix: string, defaultConfig: IClientConfig): ICl
         video: {
             codecs: argCodec ? argCodec.split(",") : defaultConfig.video.codecs,
             bitrate: argBitrate ? parseInt(argBitrate) : defaultConfig.video.bitrate,
+            source: argSource ? argSource as ("screen" | "camera") : defaultConfig.video.source,
             constraints: {
                 height: argHeight ? { ideal: parseInt(argHeight) } : defaultConfig.video.constraints.height,
                 width: argWidth ? { ideal: parseInt(argWidth) } : defaultConfig.video.constraints.width,

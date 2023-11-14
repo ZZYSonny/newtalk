@@ -11,6 +11,7 @@ export const defaultClientConfig: IClientConfig = {
     video: {
         codecs: ["AV1", "VP9"],
         bitrate: 8,
+        source: "camera",
         constraints: {
             width: { ideal: 1280 },
             height: { ideal: 720 },

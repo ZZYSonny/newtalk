@@ -18,11 +18,21 @@ async function createConnection(configFromServer: IClientConfig) {
     });
 
     console.log(`[Video][1][${id.role}] Get Local Stream`)
-    const localStream = await navigator.mediaDevices.getUserMedia({
-        video: config.video.constraints,
-        audio: config.audio.constraints
-    });
+    let localStream: MediaStream;
 
+    if (config.video.source == "screen") {
+        localStream = await navigator.mediaDevices.getDisplayMedia({
+            video: config.video.constraints,
+            audio: config.audio.constraints
+        });
+    } else if(config.video.source == "camera") {
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: config.video.constraints,
+            audio: config.audio.constraints
+        });
+    } else {
+        throw "Unknown video source"
+    }
     // Set Local Video
     localVideo.srcObject = localStream;
 
