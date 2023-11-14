@@ -14,7 +14,7 @@ esbuild.context({
     ],
     outdir: "public/js",
     bundle: true,
-    sourcemap: true
+    sourcemap: "inline"
 }).then(async ctx => {
     const { host, port } = await ctx.serve({
         host: HTTP_HOST,

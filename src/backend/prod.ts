@@ -8,13 +8,6 @@ const HTTP_HOST = "127.0.0.1";
 const PORT_HTTP = 8080;
 const SERVE_DIR = "public"
 
-if(fs.existsSync("public/js/index.js.map")){
-    fs.rmSync("public/js/index.js.map");
-}
-if(fs.existsSync("public/js/test.js.map")){
-    fs.rmSync("public/js/test.js.map");
-}
-
 esbuild.buildSync({
     target: "es2022",
     entryPoints: [
