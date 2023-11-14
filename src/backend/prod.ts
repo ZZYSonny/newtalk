@@ -8,7 +8,7 @@ const HTTP_HOST = "127.0.0.1";
 const PORT_HTTP = 8080;
 const SERVE_DIR = "public"
 
-esbuild.buildSync({
+esbuild.context({
     target: "es2022",
     entryPoints: [
         'src/frontend/index.ts',
@@ -18,6 +18,9 @@ esbuild.buildSync({
     bundle: true,
     minify: true,
     treeShaking: true
+}).then(async (ctx) => {
+    await ctx.rebuild()
+    ctx.watch()
 })
 
 const app = express();
