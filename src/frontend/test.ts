@@ -18,9 +18,9 @@ function createConnection(config: IClientConfig){
 async function initCall() {
     stateCaption.textContent = "Connecting to Server...";
     await initializeSocket(null);
+    stateCaption.textContent = "Parsing Config...";
 
     if (id.role === "admin") {
-        stateCaption.textContent = "Parsing Config...";
         const allConfig = configFromURL("all", defaultClientConfig);
         const connection = await initialPerfAdmin (
             allConfig, createConnection, 

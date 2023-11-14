@@ -68,9 +68,8 @@ async function initCall() {
     await initPermission();
     stateCaption.textContent = "Connecting to Server...";
     await initializeSocket(null);
-
+    stateCaption.textContent = "Parsing Config...";
     if (id.role === "admin") {
-        stateCaption.textContent = "Parsing Config...";
         const allConfig = configFromURL("all", defaultClientConfig);
         const adminConfig = configFromURL("admin", allConfig);
         const clientConfig = configFromURL("client", allConfig);

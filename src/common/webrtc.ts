@@ -7,7 +7,7 @@ let socket: Socket;
 
 export async function initializeSocket(url: string | null) {
     if (url) {
-        socket = connect(url);
+        socket = connect(url, {transports: ["websocket"]});
     } else {
         socket = connect();
         window.addEventListener("beforeunload", (ev) => socket.close());
