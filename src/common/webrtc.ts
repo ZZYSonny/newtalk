@@ -76,8 +76,8 @@ export function initializeWebRTCAdmin(createConnection: (config: IClientConfig) 
             if (updateProgress) updateProgress("Waiting for Answer...");
         })
 
-        socket.on("webrtc initial answer broadcast", async (other: IIdentity, answer: RTCSessionDescriptionInit, offer: RTCSessionDescriptionInit) => {
-            console.info(`[RTC][Initial][2.0][Admin] Received Client Answer in response to Offer`, answer, offer);
+        socket.on("webrtc initial answer broadcast", async (other: IIdentity, answer: RTCSessionDescriptionInit) => {
+            console.info(`[RTC][Initial][2.0][Admin] Received Client Answer`, answer);
 
             if (updateProgress) updateProgress("Setting Internal States...");
             await connection.setRemoteDescription(answer);
@@ -138,7 +138,7 @@ export function initializeWebRTCClient(createConnection: (config: IClientConfig)
             const answer = await connection.createAnswer();
             connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
             await connection.setLocalDescription(answer);
-            socket.emit("webrtc initial answer", self, answer, offer);
+            socket.emit("webrtc initial answer", self, answer);
             console.info(`[RTC][Initial][1.4][Client] Created, Set and Sent Answer`, answer);
 
 
