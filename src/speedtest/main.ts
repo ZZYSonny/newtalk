@@ -11,10 +11,7 @@ console.info = (...args) =>{};
 nodeDatachannel.initLogger("Warning")
 
 function createConnection(config: IClientConfig){
-    return new nodeDatachannelPolyfill.RTCPeerConnection({
-        iceServers: config.ice.servers,
-        iceTransportPolicy: config.ice.transport
-    });
+    return new nodeDatachannelPolyfill.RTCPeerConnection(config.rtc.peer);
 }
 
 

@@ -1,11 +1,12 @@
 import { IClientConfig } from "../common/interface";
 
 export const defaultClientConfig: IClientConfig = {
-    ice: {
-        servers: [
-            {urls: "stun:stun.l.google.com:19302"}
-        ],
-        transport: "all",
+    rtc: {
+        peer: {
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+            iceTransportPolicy: "all",
+            iceCandidatePoolSize: 16,
+        },
         stack: "all"
     },
     video: {

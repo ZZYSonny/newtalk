@@ -12,10 +12,7 @@ async function createConnection(configFromServer: IClientConfig) {
     const config = configFromURL("override", configFromServer);
     console.log(`[Video][0][${id.role}] Parsed overriden config`, configFromServer, config)
 
-    const pc = new RTCPeerConnection({
-        iceServers: config.ice.servers,
-        iceTransportPolicy: config.ice.transport
-    });
+    const pc = new RTCPeerConnection(config.rtc.peer);
 
     console.log(`[Video][1][${id.role}] Get Local Stream`)
     let localStream: MediaStream;

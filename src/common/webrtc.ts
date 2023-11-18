@@ -22,10 +22,10 @@ function cbInitialIceCandidate(connection: RTCPeerConnection, self: IIdentity, c
             connection.onicecandidate = null;
         } else {
             let flag = true;
-            if (config.ice.transport == "all") {
-                if (config.ice.stack == "v4") {
+            if (config.rtc.peer.iceTransportPolicy != "relay") {
+                if (config.rtc.stack == "v4") {
                     flag = ipRegex.v4().test(ev.candidate.address!);
-                } else if (config.ice.stack == "v6") {
+                } else if (config.rtc.stack == "v6") {
                     flag = ipRegex.v6().test(ev.candidate.address!);
                 }
             }

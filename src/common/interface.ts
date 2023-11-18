@@ -1,6 +1,5 @@
-export interface IClientICEConfig {
-    servers: RTCIceServer[],
-    transport: "all" | "relay",
+export interface IClientRTCConfig {
+    peer: RTCConfiguration,
     stack: "all" | "v4" | "v6"
 }
 
@@ -16,7 +15,7 @@ export interface IClientAudioConfig {
 }
 
 export interface IClientConfig {
-    ice: IClientICEConfig,
+    rtc: IClientRTCConfig,
     video: IClientVideoConfig,
     audio: IClientAudioConfig,
 }
@@ -63,14 +62,20 @@ export function configFromURL(prefix: string, defaultConfig: IClientConfig): ICl
     const argSource = param.get(`${prefix}.source`);
 
     return {
-        ice: {
-            servers: defaultConfig.ice.servers,
-            transport: getArg(prefix, "transport",
-                (s: string) => s as ("all" | "relay"),
-                defaultConfig.ice.transport),
+        rtc: {
+            peer: {
+                iceTransportPolicy: getArg(prefix, "transport",
+                    (s: string) => s as ("all" | "relay"),
+                    defaultConfig.rtc.peer.iceTransportPolicy),
+                iceServers: defaultConfig.rtc.peer.iceServers,
+                iceCandidatePoolSize: defaultConfig.rtc.peer.iceCandidatePoolSize,
+                rtcpMuxPolicy: defaultConfig.rtc.peer.rtcpMuxPolicy,
+                bundlePolicy: defaultConfig.rtc.peer.bundlePolicy,
+                certificates: defaultConfig.rtc.peer.certificates
+            },
             stack: getArg(prefix, "stack",
                 (s: string) => s as ("all" | "v4" | "v6"),
-                defaultConfig.ice.stack),
+                defaultConfig.rtc.stack),
         },
         video: {
             codecs: getArg(prefix, "codecs",
