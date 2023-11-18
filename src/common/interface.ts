@@ -51,16 +51,6 @@ function getArgWithNull<T>(prefix: string, name: string, f: (s: string) => T, de
 }
 
 export function configFromURL(prefix: string, defaultConfig: IClientConfig): IClientConfig {
-    const argIceTransport = param.get(`${prefix}.transport`);
-    const argIceStack = param.get(`${prefix}.stack`);
-    const argCodec = param.get(`${prefix}.codecs`);
-    const argBitrate = param.get(`${prefix}.bitrate`);
-    const argHeight = param.get(`${prefix}.height`);
-    const argWidth = param.get(`${prefix}.width`);
-    const argFPS = param.get(`${prefix}.fps`);
-    const argFace = param.get(`${prefix}.face`);
-    const argSource = param.get(`${prefix}.source`);
-
     return {
         rtc: {
             peer: {
