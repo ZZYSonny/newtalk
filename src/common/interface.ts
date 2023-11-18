@@ -50,6 +50,17 @@ function getArgWithNull<T>(prefix: string, name: string, f: (s: string) => T, de
     else return f(p);
 }
 
+function iceServerFilter(servers: RTCIceServer[] | undefined, stunType: "all" | "tcp" | "udp"){
+    if(!servers || stunType == "all") {
+        return servers;
+    } else{
+        return servers.filter(s => {
+            if(typeof s.urls == "string" ) return s.urls.endsWith(stunType);
+            else return true;
+        })
+    }
+}
+
 export function configFromURL(prefix: string, defaultConfig: IClientConfig): IClientConfig {
     return {
         rtc: {
@@ -57,7 +68,11 @@ export function configFromURL(prefix: string, defaultConfig: IClientConfig): ICl
                 iceTransportPolicy: getArg(prefix, "transport",
                     (s: string) => s as ("all" | "relay"),
                     defaultConfig.rtc.peer.iceTransportPolicy),
-                iceServers: defaultConfig.rtc.peer.iceServers,
+                iceServers: getArg(prefix, "stun",
+                    (s: string) => iceServerFilter(
+                        defaultConfig.rtc.peer.iceServers, 
+                        s as ("all" | "tcp" | "udp")),
+                    defaultConfig.rtc.peer.iceServers),
                 iceCandidatePoolSize: defaultConfig.rtc.peer.iceCandidatePoolSize,
                 rtcpMuxPolicy: defaultConfig.rtc.peer.rtcpMuxPolicy,
                 bundlePolicy: defaultConfig.rtc.peer.bundlePolicy,
