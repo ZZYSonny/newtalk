@@ -8,7 +8,7 @@
             "name": "Web",
             "request": "launch",
             "type": "chrome",
-            "url": "http://localhost:8080/?room=test&role=admin&name=admin",
+            "url": "http://localhost:8080/call.html?room=TEST&name=test&role=admin",
             "webRoot": "${workspaceFolder}/public/js"
         },
         {
