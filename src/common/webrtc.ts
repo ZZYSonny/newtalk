@@ -19,6 +19,16 @@ export async function initializeSocket(url: string | null) {
 
 }
 
+function cbOnError(self: IIdentity) {
+    window.addEventListener("error", (ev) => {
+        socket.emit("webrtc error", self, ev.error.toString());
+    });
+    window.addEventListener("unhandledrejection", (ev) => {
+        socket.emit("webrtc error", self, ev.reason.toString());
+    });
+    socket.on("webrtc error broadcast", (id, msg) => console.error("[Remote Error]", msg))
+}
+
 function cbInitialIceCandidate(connection: RTCPeerConnection, self: IIdentity, config: IClientConfig) {
     return (ev: RTCPeerConnectionIceEvent) => {
         if (ev.candidate === null) {
@@ -121,6 +131,7 @@ export function initializeWebRTCAdmin(
         throw "Room is full";
     });
 
+    if (typeof window !== "undefined") cbOnError(self);
     if (updateProgress) updateProgress("Waiting for Client...");
     socket.emit("room join", self);
 }
@@ -187,6 +198,7 @@ export function initializeWebRTCClient(
         if (updateProgress) updateProgress("Waiting for Offer...");
     })
 
+    if (typeof window !== "undefined") cbOnError(self);
     if (updateProgress) updateProgress("Waiting for Admin...");
     socket.emit("room join", self);
 }
