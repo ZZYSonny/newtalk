@@ -15,7 +15,7 @@ function channelPerf(connection: RTCPeerConnection, channel: RTCDataChannel, mbp
     let cntSend = 0;
     let cntReceive = 0;
     let cntError = 0;
-    const bytes_per_message = (typeof process != "undefined")? 24 * 1024: 256 * 1024;
+    const bytes_per_message = (typeof process != "undefined") ? 24 * 1024 : 256 * 1024;
     const message_per_second = mbps * 1024 * 1024 / bytes_per_message;
     const msg = new Uint8Array(bytes_per_message);
 
@@ -40,7 +40,7 @@ function channelPerf(connection: RTCPeerConnection, channel: RTCDataChannel, mbp
         if (cur == 10) {
             channel.close()
             connection.close()
-            if(typeof process != "undefined"){
+            if (typeof process != "undefined") {
                 process.exit()
             }
         }
@@ -51,30 +51,50 @@ function channelPerf(connection: RTCPeerConnection, channel: RTCDataChannel, mbp
     })
 }
 
-export async function initialPerfAdmin(bothConfig: IClientConfig, createConnection: (config: IClientConfig) => RTCPeerConnection, progress: null | ((s: string) => void), report: (s: string) => void) {
-    await initializeWebRTCAdmin(async (config) => {
-        const pc = createConnection(config);
-        const ch = pc.createDataChannel("test", {
-            ordered: false,
-            maxRetransmits: 0
-        });
-        ch.addEventListener("open", (ev) => { channelPerf(pc, ch, config.video.bitrate, report); })
-        return pc;
-    }, {
+export function initialPerfAdmin(
+    bothConfig: IClientConfig,
+    createConnection: (config: IClientConfig) => RTCPeerConnection,
+    progress: null | ((s: string) => void),
+    report: (s: string) => void
+) {
+    const id: IIdentity = {
         name: "admin",
         role: "admin",
         room: "speed"
-    }, bothConfig, bothConfig, progress);
+    };
+
+    initializeWebRTCAdmin(
+        id, bothConfig, bothConfig,
+        async (config) => {
+            const pc = createConnection(config);
+            const ch = pc.createDataChannel("test", {
+                ordered: false,
+                maxRetransmits: 0
+            });
+            ch.addEventListener("open", (ev) => { channelPerf(pc, ch, config.video.bitrate, report); })
+            return pc;
+        },
+        progress
+    );
 }
 
-export async function initialPerfClient(createConnection: (config: IClientConfig) => RTCPeerConnection, progress: null | ((s: string) => void), report: (s: string) => void) {
-    await initializeWebRTCClient(async (c) => {
-        const pc = createConnection(c);
-        pc.ondatachannel = (ev) => {channelPerf(pc, ev.channel, c.video.bitrate, report);}
-        return pc;
-    }, {
+export function initialPerfClient(
+    createConnection: (config: IClientConfig) => RTCPeerConnection,
+    progress: null | ((s: string) => void),
+    report: (s: string) => void
+) {
+    const id: IIdentity = {
         name: "admin",
         role: "admin",
         room: "speed"
-    }, progress);
+    }
+    initializeWebRTCClient(
+        id,
+        async (c) => {
+            const pc = createConnection(c);
+            pc.ondatachannel = (ev) => { channelPerf(pc, ev.channel, c.video.bitrate, report); }
+            return pc;
+        },
+        progress
+    );
 }

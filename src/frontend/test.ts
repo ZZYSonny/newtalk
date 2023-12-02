@@ -22,13 +22,13 @@ async function initCall() {
 
     if (id.role === "admin") {
         const allConfig = configFromURL("all", defaultClientConfig);
-        const connection = await initialPerfAdmin (
+        initialPerfAdmin (
             allConfig, createConnection, 
             (s) => stateCaption.textContent = s,
             (s) => speedOutput.textContent += s
         );
     } else if (id.role === "client") {
-        const connection = await initialPerfClient(
+        initialPerfClient(
             createConnection,
             (s) => stateCaption.textContent = s,
             (s) => speedOutput.innerHTML += s.replaceAll("\t","&emsp;&emsp;") + "<br>"

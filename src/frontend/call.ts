@@ -111,14 +111,16 @@ async function initCall() {
         const allConfig = configFromURL("all", defaultClientConfig);
         const adminConfig = configFromURL("admin", allConfig);
         const clientConfig = configFromURL("client", allConfig);
-        const connection = await initializeWebRTCAdmin(
-            createConnection, id, adminConfig, clientConfig,
+        initializeWebRTCAdmin(
+            id, adminConfig, clientConfig,
+            (cfg) => createConnection(cfg),
             (state) => stateCaption.textContent = state,
             (connection) => initReport(connection)
         );
     } else if (id.role === "client") {
-        const connection = await initializeWebRTCClient(
-            createConnection, id,
+        initializeWebRTCClient(
+            id,
+            (cfg) => createConnection(cfg),
             (state) => stateCaption.textContent = state,
             (connection) => initReport(connection)
         );
