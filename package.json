@@ -12,8 +12,8 @@
     "typescript": "^5.2.2"
   },
   "scripts": {
-    "dev": "tsx src/backend/dev.ts",
-    "prod": "tsx src/backend/prod.ts",
+    "dev": "tsx src/backend/main.ts --dev",
+    "prod": "tsx src/backend/main.ts",
     "speed-admin": "tsx src/speedtest/main.ts --admin",
     "speed-client": "tsx src/speedtest/main.ts --client"
   }

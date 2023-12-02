@@ -19,7 +19,10 @@
                 "--import",
                 "tsx"
             ],
-            "program": "src/backend/dev.ts"
+            "program": "src/backend/main.ts",
+            "args": [
+                ""
+            ]
         },
         {
             "type": "node",

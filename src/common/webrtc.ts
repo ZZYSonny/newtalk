@@ -9,15 +9,20 @@ export async function initializeSocket(url: string | null) {
     if (url) {
         socket = connect(url, { transports: ["websocket"] });
     } else {
-        socket = connect();
-        window.addEventListener("beforeunload", (ev) => socket.close());
+        socket = connect({ transports: ["websocket"] });
     }
+
+    if (typeof window != 'undefined') {
+        window.addEventListener("beforeunload", (ev) => socket.close());
+        socket.on("refresh", () => window.location.reload())
+    }
+
 }
 
 function cbInitialIceCandidate(connection: RTCPeerConnection, self: IIdentity, config: IClientConfig) {
     return (ev: RTCPeerConnectionIceEvent) => {
         if (ev.candidate === null) {
-            socket.emit("webrtc initial ice", self, ev.candidate);
+            socket.emit("webrtc ice", self, ev.candidate);
             console.info(`[ICE][${self.role}] Removed ICE Listener.`);
             connection.onicecandidate = null;
         } else {
@@ -30,7 +35,7 @@ function cbInitialIceCandidate(connection: RTCPeerConnection, self: IIdentity, c
                 }
             }
             if (flag) {
-                socket.emit("webrtc initial ice", self, ev.candidate);
+                socket.emit("webrtc ice", self, ev.candidate);
                 console.info(`[ICE][${self.role}] Sent ICE`, ev.candidate);
             } else {
                 console.info(`[ICE][${self.role}] Skipped ICE`, ev.candidate);
@@ -78,13 +83,13 @@ export function initializeWebRTCAdmin(
         const offer = await connection.createOffer();
         connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
         await connection.setLocalDescription(offer);
-        socket.emit("webrtc initial offer", self, clientConfig, offer);
+        socket.emit("webrtc offer", self, clientConfig, offer);
         console.info(`[RTC][0.3][Admin] Created, Set and Sent Offer`, offer);
 
         if (updateProgress) updateProgress("Waiting for Answer...");
     })
 
-    socket.on("webrtc initial answer broadcast", async (other: IIdentity, answer: RTCSessionDescriptionInit) => {
+    socket.on("webrtc answer broadcast", async (other: IIdentity, answer: RTCSessionDescriptionInit) => {
         console.info(`[RTC][2.0][Admin] Received Client Answer`, answer);
 
         if (updateProgress) updateProgress("Setting Internal States...");
@@ -99,7 +104,7 @@ export function initializeWebRTCAdmin(
         }
     })
 
-    socket.on("webrtc initial ice broadcast", (other: IIdentity, ice: RTCIceCandidateInit) => {
+    socket.on("webrtc ice broadcast", (other: IIdentity, ice: RTCIceCandidateInit) => {
         if (connection) {
             if (connection.remoteDescription) {
                 console.info(`[ICE][Admin] Consumed ICE Directly`, ice);
@@ -129,7 +134,7 @@ export function initializeWebRTCClient(
     let config: IClientConfig;
     let iceQueue: RTCIceCandidateInit[] = [];
 
-    socket.on("webrtc initial offer broadcast", async (other: IIdentity, clientConfig: IClientConfig, offer: RTCSessionDescriptionInit) => {
+    socket.on("webrtc offer broadcast", async (other: IIdentity, clientConfig: IClientConfig, offer: RTCSessionDescriptionInit) => {
         console.clear();
 
         console.info(`[RTC][1.0][Client] Received config and offer`);
@@ -148,7 +153,7 @@ export function initializeWebRTCClient(
         const answer = await connection.createAnswer();
         connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
         await connection.setLocalDescription(answer);
-        socket.emit("webrtc initial answer", self, answer);
+        socket.emit("webrtc answer", self, answer);
         console.info(`[RTC][1.4][Client] Created, Set and Sent Answer`, answer);
 
 
@@ -161,7 +166,7 @@ export function initializeWebRTCClient(
         connection.onconnectionstatechange = cbInitialConnected(connection, self, other, updateProgress, postConnection);
     })
 
-    socket.on("webrtc initial ice broadcast", (other: IIdentity, ice: RTCIceCandidateInit) => {
+    socket.on("webrtc ice broadcast", (other: IIdentity, ice: RTCIceCandidateInit) => {
         if (connection) {
             if (connection.remoteDescription) {
                 console.info(`[ICE][Client] Consumed ICE Directly`, ice);
