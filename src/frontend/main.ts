@@ -1,6 +1,6 @@
 import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
 import { IClientConfig, IIdentity, configFromURL, idFromURL } from "../common/interface";
-import { defaultClientConfig } from "./defaults_private";
+import { defaultClientConfig } from "../common/defaults_private";
 
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;
@@ -71,35 +71,8 @@ async function initPermission() {
     stream.getTracks().forEach((track) => track.stop());
 }
 
-let reportTimer: number | null = null;
-async function initReport(connection: RTCPeerConnection, ms: number = 2000){
-    let lastRecv = 0;
-    let lastSent = 0;
-    await new Promise(r => window.setTimeout(r, 5000));
-    if(reportTimer) window.clearInterval(reportTimer); 
-    reportTimer = window.setInterval(async() =>{
-        const report = await connection.getStats();
-        let curRecv = 0;
-        let curSent = 0;
-        let curLoss = 0;
-        for(const dict of report.values()){
-            if(dict.type === "inbound-rtp" && dict.kind === "video"){
-                curRecv = dict.bytesReceived;
-            }
-            if(dict.type === "outbound-rtp" && dict.kind === "video"){
-                curSent = dict.bytesSent;
-            }
-            if(dict.type === "remote-inbound-rtp" && dict.kind === "video"){
-                curLoss = dict.fractionLost;
-            }
-        }
-        const mbpsRecv = ((curRecv - lastRecv) / 1024 / 1024 * 8) / (ms / 1000);
-        const mbpsSent = ((curSent - lastSent) / 1024 / 1024 * 8) / (ms / 1000);
-        const percLoss = curLoss * 100;
-        lastRecv = curRecv;
-        lastSent = curSent;
-        reportCaption.innerText = `${mbpsRecv.toPrecision(2)}↓ ${mbpsSent.toPrecision(2)}↑ ${percLoss.toPrecision(2)}%`;
-    }, ms)
+async function initBenchAdmin() {
+    
 }
 
 async function initCall() {
@@ -115,14 +88,16 @@ async function initCall() {
             id, adminConfig, clientConfig,
             (cfg) => createConnection(cfg),
             (state) => stateCaption.textContent = state,
-            (connection) => initReport(connection)
+            (connection) => {},
+            (r) => reportCaption.innerText = `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑ ${r.sendLoss.toPrecision(2)}%`
         );
     } else if (id.role === "client") {
         initializeWebRTCClient(
             id,
             (cfg) => createConnection(cfg),
             (state) => stateCaption.textContent = state,
-            (connection) => initReport(connection)
+            (connection) => {},
+            (r) => reportCaption.innerText = `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑ ${r.sendLoss.toPrecision(2)}%`
         );
     }
 }

@@ -11,8 +11,8 @@ const devMode = process.argv.includes("--dev");
         plugins: devMode? []: [esbuildReloadPlugin],
         target: "es2022",
         entryPoints: [
-            'src/frontend/call.ts',
-            'src/frontend/test.ts'
+            'src/frontend/main.ts',
+            'src/speedtest/main.ts'
         ],
         outdir: "public/js",
         bundle: true,
@@ -22,7 +22,6 @@ const devMode = process.argv.includes("--dev");
     });
 
     if (devMode) {
-        await ctx.watch()
         const { host, port } = await ctx.serve({
             host: "127.0.0.1",
             port: 8000,

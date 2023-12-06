@@ -1,3 +1,5 @@
+import { presetAudioConfig, presetRTCConfig, presetVideoConfig } from "./defaults_private";
+
 export interface IClientRTCConfig {
     peer: RTCConfiguration,
     stack: "all" | "v4" | "v6"
@@ -20,6 +22,12 @@ export interface IClientConfig {
     audio: IClientAudioConfig,
 }
 
+export interface INetReport {
+    recvMbps: number,
+    sendMbps: number,
+    sendLoss: number
+}
+
 export interface IIdentity {
     name: string,
     room: string,
@@ -31,7 +39,7 @@ const param = new URLSearchParams(window.location.search);
 
 export function idFromURL(): IIdentity {
     return {
-        name: param.get("name")!,
+        name: param.get("name") || param.get("role")!,
         room: param.get("room")!,
         role: param.get("role")! as ("admin" | "client"),
     }
@@ -50,71 +58,95 @@ function getArgWithNull<T>(prefix: string, name: string, f: (s: string) => T, de
     else return f(p);
 }
 
-function iceServerFilter(servers: RTCIceServer[] | undefined, stunType: "all" | "tcp" | "udp"){
-    if(!servers || stunType == "all") {
+function iceServerFilter(servers: RTCIceServer[] | undefined, stunType: "all" | "tcp" | "udp") {
+    if (!servers || stunType == "all") {
         return servers;
-    } else{
+    } else {
         return servers.filter(s => {
-            if(typeof s.urls == "string" ) return s.urls.endsWith(stunType);
+            if (typeof s.urls == "string") return s.urls.endsWith(stunType);
             else return true;
         })
     }
 }
 
 export function configFromURL(prefix: string, defaultConfig: IClientConfig): IClientConfig {
-    return {
-        rtc: {
+    function rtcFromURL(prefix: string, defaultConfig: IClientRTCConfig): IClientRTCConfig {
+        return {
             peer: {
-                iceTransportPolicy: getArg(prefix, "transport",
+                iceTransportPolicy: getArg(prefix, "rtc.transport",
                     (s: string) => s as ("all" | "relay"),
-                    defaultConfig.rtc.peer.iceTransportPolicy),
-                iceServers: getArg(prefix, "stun",
+                    defaultConfig.peer.iceTransportPolicy),
+                iceServers: getArg(prefix, "rtc.stun",
                     (s: string) => iceServerFilter(
-                        defaultConfig.rtc.peer.iceServers, 
+                        defaultConfig.peer.iceServers,
                         s as ("all" | "tcp" | "udp")),
-                    defaultConfig.rtc.peer.iceServers),
-                iceCandidatePoolSize: defaultConfig.rtc.peer.iceCandidatePoolSize,
-                rtcpMuxPolicy: defaultConfig.rtc.peer.rtcpMuxPolicy,
-                bundlePolicy: defaultConfig.rtc.peer.bundlePolicy,
-                certificates: defaultConfig.rtc.peer.certificates
+                    defaultConfig.peer.iceServers),
+                iceCandidatePoolSize: defaultConfig.peer.iceCandidatePoolSize,
+                rtcpMuxPolicy: defaultConfig.peer.rtcpMuxPolicy,
+                bundlePolicy: defaultConfig.peer.bundlePolicy,
+                certificates: defaultConfig.peer.certificates
             },
-            stack: getArg(prefix, "stack",
+            stack: getArg(prefix, "rtc.stack",
                 (s: string) => s as ("all" | "v4" | "v6"),
-                defaultConfig.rtc.stack),
-        },
-        video: {
-            codecs: getArg(prefix, "codecs",
+                defaultConfig.stack),
+        }
+    }
+
+    function videoFromURL(prefix: string, defaultConfig: IClientVideoConfig): IClientVideoConfig {
+        return {
+            codecs: getArg(prefix, "video.codecs",
                 (s: string) => s.split(","),
-                defaultConfig.video.codecs
+                defaultConfig.codecs
             ),
-            bitrate: getArg(prefix, "bitrate",
+            bitrate: getArg(prefix, "video.bitrate",
                 (s: string) => parseInt(s),
-                defaultConfig.video.bitrate
+                defaultConfig.bitrate
             ),
-            source: getArg(prefix, "source",
+            source: getArg(prefix, "video.source",
                 (s: string) => s as ("screen" | "camera"),
-                defaultConfig.video.source),
+                defaultConfig.source),
             constraints: {
-                height: getArgWithNull(prefix, "height",
+                height: getArgWithNull(prefix, "video.height",
                     (s: string) => { return { ideal: parseInt(s) } as ConstrainULong },
-                    defaultConfig.video.constraints.height
+                    defaultConfig.constraints.height
                 ),
-                width: getArgWithNull(prefix, "width",
+                width: getArgWithNull(prefix, "video.width",
                     (s: string) => { return { ideal: parseInt(s) } as ConstrainULong },
-                    defaultConfig.video.constraints.width
+                    defaultConfig.constraints.width
                 ),
-                frameRate: getArgWithNull(prefix, "fps",
+                frameRate: getArgWithNull(prefix, "video.fps",
                     (s: string) => { return { ideal: parseInt(s) } as ConstrainULong },
-                    defaultConfig.video.constraints.frameRate
+                    defaultConfig.constraints.frameRate
                 ),
-                facingMode: getArgWithNull(prefix, "face",
+                facingMode: getArgWithNull(prefix, "video.face",
                     (s: string) => { return { ideal: s } as ConstrainDOMString },
-                    defaultConfig.video.constraints.facingMode
+                    defaultConfig.constraints.facingMode
                 ),
             }
-        },
-        audio: {
-            constraints: defaultConfig.audio.constraints
         }
+    }
+
+    function audioFromURL(prefix: string, defaultConfig: IClientAudioConfig): IClientAudioConfig {
+        return {
+            constraints: defaultConfig.constraints
+        }
+    }
+
+    return {
+        rtc: rtcFromURL(prefix, getArg(
+            prefix, "rtc.profile",
+            (s: string) => presetRTCConfig[s],
+            defaultConfig.rtc
+        )),
+        video: videoFromURL(prefix, getArg(
+            prefix, "video.profile",
+            (s: string) => presetVideoConfig[s],
+            defaultConfig.video
+        )),
+        audio: audioFromURL(prefix, getArg(
+            prefix, "audio.profile",
+            (s: string) => presetAudioConfig[s],
+            defaultConfig.audio
+        ))
     }
 }

@@ -1,15 +1,18 @@
-import { IClientConfig } from "../common/interface";
+import { IClientAudioConfig, IClientConfig, IClientRTCConfig, IClientVideoConfig } from "./interface";
 
-export const defaultClientConfig: IClientConfig = {
-    rtc: {
+export const presetRTCConfig: Record<string, IClientRTCConfig> = {
+    "default": {
         peer: {
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
             iceTransportPolicy: "all",
             iceCandidatePoolSize: 16,
         },
         stack: "all"
-    },
-    video: {
+    }
+}
+
+export const presetVideoConfig: Record<string, IClientVideoConfig> = {
+    "default": {
         codecs: ["AV1", "VP9"],
         bitrate: 8,
         source: "camera",
@@ -19,8 +22,11 @@ export const defaultClientConfig: IClientConfig = {
             frameRate: { ideal: 30 },
             facingMode: { ideal: "user" },
         }
-    },
-    audio: {
+    }
+}
+
+export const presetAudioConfig: Record<string, IClientAudioConfig> = {
+    "default": {
         constraints: {
             noiseSuppression: true,
             echoCancellation: true,
@@ -29,6 +35,13 @@ export const defaultClientConfig: IClientConfig = {
             sampleRate: 44100,
         }
     }
+}
+
+export const defaultClientConfig: IClientConfig = {
+    rtc: presetRTCConfig["default"],
+    video: presetVideoConfig["default"],
+    audio: presetAudioConfig["default"],
+
 }
 
 export const defaultServerURL = "http://localhost:8080"

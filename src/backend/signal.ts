@@ -39,7 +39,7 @@ io.sockets.on('connection', (socket) => {
   })
 
   socket.on("webrtc error", (id: IIdentity, ...args) => {
-    console.log(`Name ${id.name} Role ${id.role} sends error message to Room ${id.room}\n${args.join("\n")}`)
+    console.log(`Name ${id.name} Role ${id.role} sends error message to Room ${id.room}\n>> ${args.join("\n")}`)
     socket.to(id.room).emit("webrtc error broadcast", id, ...args);
   })
 
