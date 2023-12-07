@@ -54,35 +54,34 @@ async function initializeWebRTCStats(
     connection: RTCPeerConnection, ms: number = 2000,
     reportConnection: (report: INetReport) => void
 ) {
-    let lastRecv = 0;
-    let lastSend = 0;
-    let lastSentLoss = 0;
+    let lastDict: RTCIceCandidatePairStats | null = null;
     await new Promise(r => window.setTimeout(r, ms));
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState !== "connected") {
             clearInterval(timer);
         } else {
             const report = await connection.getStats();
-            let curRecv = 0;
-            let curSent = 0;
-            let curSentLoss = 0;
+            let curDict: RTCIceCandidatePairStats | null = null;
             for (const dict of report.values()) {
-                if (dict.type === "candidate-pair") {
-                    curSent += dict.bytesSent;
-                    curRecv += dict.bytesReceived;
-                    curSentLoss += dict.bytesDiscardedOnSend;
+                if (dict.type === "candidate-pair" && dict.nominated) {
+                    curDict = dict;
                 }
             }
-            const mbpsRecv = ((curRecv - lastRecv) / 1024 / 1024 * 8) / (ms / 1000);
-            const mbpsSend = ((curSent - lastSend) / 1024 / 1024 * 8) / (ms / 1000);
-            const percLoss = ((curSentLoss - lastSentLoss) / (curSent - lastSend)) * 100;
-            reportConnection({
-                recvMbps: mbpsRecv,
-                sendMbps: mbpsSend,
-                sendLoss: percLoss
-            });
-            lastRecv = curRecv;
-            lastSend = curSent;
+            if (lastDict && curDict) {
+                reportConnection({
+                    recvMbps: (curDict.lastPacketReceivedTimestamp == lastDict.lastPacketReceivedTimestamp!)?0:(
+                        ((curDict.bytesReceived! - lastDict.bytesReceived!) / 1024 / 1024 * 8) /
+                        ((curDict.lastPacketReceivedTimestamp! - lastDict.lastPacketReceivedTimestamp!) / 1000)
+                    ),
+                    sendMbps: (curDict.lastPacketSentTimestamp! == lastDict.lastPacketSentTimestamp!)?0:(
+                        ((curDict.bytesSent! - lastDict.bytesSent!) / 1024 / 1024 * 8) /
+                        ((curDict.lastPacketSentTimestamp! - lastDict.lastPacketSentTimestamp!) / 1000)
+                    ),
+                    curDict: curDict,
+                    lastDict: lastDict
+                });
+            }
+            lastDict = curDict;
         }
     }, ms)
 }

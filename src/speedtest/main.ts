@@ -1,5 +1,5 @@
 import { IClientConfig, configFromURL, idFromURL } from "../common/interface";
-import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, resetWebRTC } from "../common/webrtc";
+import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
 import { defaultClientConfig, presetAudioConfig, presetRTCConfig, presetVideoConfig } from "../common/defaults_private";
 
 const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
@@ -37,8 +37,8 @@ async function createConnection(config: IClientConfig) {
     const pc = new RTCPeerConnection(config.rtc.peer);
     if (id.role === "admin") {
         const ch = pc.createDataChannel("test", {
-            ordered: false,
-            maxRetransmits: 0
+            ordered: true,
+            maxRetransmits: 2
         });
         ch.onopen = (ev) => {
             channelPerf(pc, ch, config.video.bitrate);
@@ -52,6 +52,7 @@ async function createConnection(config: IClientConfig) {
 }
 
 async function initBenchAdmin() {
+    //for (const rtcProfileName of ["p2pv6"]) {
     for (const rtcProfileName in presetRTCConfig) {
         speedOutput.innerText += `Starting ${rtcProfileName}\n`;
         const allConfig: IClientConfig = {
@@ -64,7 +65,7 @@ async function initBenchAdmin() {
             (c) => createConnection(c),
             (s) => stateCaption.innerText = s,
             (c) => {},
-            (r) => speedOutput.innerText += `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑ ${r.sendLoss.toPrecision(2)}%\n`
+            (r) => speedOutput.innerText += `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑\n`
         );
         await new Promise(r => window.setTimeout(r, (TOTAL_SEC+2)*1000));
     }

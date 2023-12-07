@@ -85,7 +85,7 @@ async function initCall() {
             (cfg) => createConnection(cfg),
             (state) => stateCaption.textContent = state,
             (connection) => {},
-            (r) => reportCaption.innerText = `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑ ${r.sendLoss.toPrecision(2)}%`
+            (r) => reportCaption.innerText = `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑`
         );
     } else if (id.role === "client") {
         initializeWebRTCClient(
@@ -93,7 +93,7 @@ async function initCall() {
             (cfg) => createConnection(cfg),
             (state) => stateCaption.textContent = state,
             (connection) => {},
-            (r) => reportCaption.innerText = `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑ ${r.sendLoss.toPrecision(2)}%`
+            (r) => reportCaption.innerText = `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑`
         );
     }
 }

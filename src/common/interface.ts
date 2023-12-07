@@ -25,7 +25,8 @@ export interface IClientConfig {
 export interface INetReport {
     recvMbps: number,
     sendMbps: number,
-    sendLoss: number
+    curDict: RTCIceCandidatePairStats
+    lastDict: RTCIceCandidatePairStats
 }
 
 export interface IIdentity {
