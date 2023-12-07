@@ -9,8 +9,4 @@ if [ "$NOGUI" == "nogui" ]; then
     FLAGS="--no-sandbox --headless=new --disable-gpu --ozone-platform=headless"
 fi
 
-echo $ROLE $FLAGS
-
-
-
 chromium $FLAGS "$SERVER/test.html?room=SPEED&role=$ROLE"

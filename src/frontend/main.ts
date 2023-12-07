@@ -71,10 +71,6 @@ async function initPermission() {
     stream.getTracks().forEach((track) => track.stop());
 }
 
-async function initBenchAdmin() {
-    
-}
-
 async function initCall() {
     await initPermission();
     stateCaption.textContent = "Connecting to Server...";
