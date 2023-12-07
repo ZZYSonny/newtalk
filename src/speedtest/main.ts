@@ -7,14 +7,16 @@ const speedOutput = document.getElementById("speedOutput") as HTMLSpanElement;
 
 const id = idFromURL();
 
+const TOTAL_SEC = 10;
+
 function channelPerf(
     connection: RTCPeerConnection,
     channel: RTCDataChannel,
     targetMbps: number,
     bytePerMsg: number = 256 * 1024,
-    totalSecs: number = 10
 ) {
     const interval = 1000 / (targetMbps * 1024 * 1024 / bytePerMsg);
+    console.log(interval)
     const msg = new Uint8Array(bytePerMsg);
 
     const timer = setInterval(() => {
@@ -28,7 +30,7 @@ function channelPerf(
     setTimeout(() => {
         channel.close();
         connection.close();
-    }, totalSecs * 1000)
+    }, TOTAL_SEC * 1000)
 }
 
 async function createConnection(config: IClientConfig) {
@@ -61,11 +63,10 @@ async function initBenchAdmin() {
             id, allConfig, allConfig,
             (c) => createConnection(c),
             (s) => stateCaption.innerText = s,
-            (c) => { },
+            (c) => {},
             (r) => speedOutput.innerText += `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑ ${r.sendLoss.toPrecision(2)}%\n`
         );
-        await new Promise(r => window.setTimeout(r, 15*1000));
-        resetWebRTC();
+        await new Promise(r => window.setTimeout(r, (TOTAL_SEC+2)*1000));
     }
 
 }

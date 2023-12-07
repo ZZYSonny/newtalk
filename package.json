@@ -5,7 +5,6 @@
     "esbuild": "^0.19.5",
     "express": "^4.18.2",
     "ip-regex": "^5.0.0",
-    "node-datachannel": "^0.5.1",
     "socket.io": "^4.7.2",
     "socket.io-client": "^4.7.2",
     "tsx": "^4.1.1",
@@ -14,7 +13,7 @@
   "scripts": {
     "dev": "tsx src/backend/main.ts --dev",
     "prod": "tsx src/backend/main.ts",
-    "speed-admin": "tsx src/speedtest/main.ts --admin",
-    "speed-client": "tsx src/speedtest/main.ts --client"
+    "speed-admin": "bash src/speedtest/launch.sh admin",
+    "speed-client": "bash src/speedtest/launch.sh client nogui"
   }
 }

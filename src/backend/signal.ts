@@ -11,15 +11,21 @@ io.sockets.on('connection', (socket) => {
     const sockets = io.sockets.adapter.rooms.get(id.room);
     const num = sockets ? sockets.size : 0;
 
-    console.log(`Name ${id.name} Role ${id.role} wants to join Room ${id.room} with ${num} users`)
-
-    if (num < 2) {
-      socket.join(id.room);
-      if (num + 1 == 2) {
+    if (socket.rooms.has(id.room)) {
+      console.log(`Name ${id.name} Role ${id.role} wants to rejoin Room ${id.room} with ${num} users`)
+      if (num == 2) {
         io.sockets.in(id.room).emit("room ready broadcast", id.room);
       }
     } else {
-      socket.emit("room full message", id.room);
+      console.log(`Name ${id.name} Role ${id.role} wants to join Room ${id.room} with ${num} users`)
+      if (num < 2) {
+        socket.join(id.room);
+        if (num + 1 == 2) {
+          io.sockets.in(id.room).emit("room ready broadcast", id.room);
+        }
+      } else {
+        socket.emit("room full message", id.room);
+      }
     }
   });
 

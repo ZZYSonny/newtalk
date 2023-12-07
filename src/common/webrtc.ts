@@ -11,19 +11,11 @@ export async function initializeSocket(url: string | null) {
     } else {
         socket = connect({ transports: ["websocket"] });
     }
-
-    if (typeof window != 'undefined') {
-        window.addEventListener("beforeunload", (ev) => socket.close());
-        socket.on("refresh", () => window.location.reload())
-    }
 }
 
-export async function resetWebRTC(){
-    socket.close()
-    initializeSocket(null)
-}
-
-function cbOnError(self: IIdentity) {
+function browserListeners(self: IIdentity) {
+    window.addEventListener("beforeunload", (ev) => socket.close());
+    socket.on("refresh", () => window.location.reload())
     window.addEventListener("error", (ev) => {
         socket.emit("webrtc error", self, ev.error.toString());
     });
@@ -117,6 +109,8 @@ export function initializeWebRTCAdmin(
     postConnection: ((connection: RTCPeerConnection) => void) | null = null,
     reportConnection: null | ((report: INetReport) => void) = null
 ) {
+    socket.removeAllListeners();
+
     let config: IClientConfig;
     let iceQueue: RTCIceCandidateInit[] = [];
 
@@ -175,7 +169,7 @@ export function initializeWebRTCAdmin(
         throw "Room is full";
     });
 
-    if (typeof window !== "undefined") cbOnError(self);
+    if (typeof window !== "undefined") browserListeners(self);
     if (updateProgress) updateProgress("Waiting for Client...");
     socket.emit("room join", self);
 }
@@ -187,6 +181,8 @@ export function initializeWebRTCClient(
     postConnection: ((connection: RTCPeerConnection) => void) | null = null,
     reportConnection: null | ((report: INetReport) => void) = null
 ) {
+    socket.removeAllListeners();
+
     let config: IClientConfig;
     let iceQueue: RTCIceCandidateInit[] = [];
 
@@ -243,7 +239,7 @@ export function initializeWebRTCClient(
         if (updateProgress) updateProgress("Waiting for Offer...");
     })
 
-    if (typeof window !== "undefined") cbOnError(self);
+    if (typeof window !== "undefined") browserListeners(self);
     if (updateProgress) updateProgress("Waiting for Admin...");
     socket.emit("room join", self);
 }
