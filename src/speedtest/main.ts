@@ -38,7 +38,7 @@ async function createConnection(config: IClientConfig) {
     if (id.role === "admin") {
         const ch = pc.createDataChannel("test", {
             ordered: true,
-            maxRetransmits: 2
+            maxPacketLifeTime: 2000
         });
         ch.onopen = (ev) => {
             channelPerf(pc, ch, config.video.bitrate);
