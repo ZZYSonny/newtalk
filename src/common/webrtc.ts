@@ -74,7 +74,6 @@ async function initializeWebRTCStats(
                 if (lastPairID) {
                     const curDict: RTCIceCandidatePairStats = curStats.get(lastPairID)!;
                     const lastDict: RTCIceCandidatePairStats = lastStats.get(lastPairID)!;
-                    console.log(curDict, lastDict)
                     if (curDict.nominated) {
                         const recvDiffMs = curDict.lastPacketReceivedTimestamp! - lastDict.lastPacketReceivedTimestamp!;
                         PairInMbps = (recvDiffMs === 0) ? 0 : (

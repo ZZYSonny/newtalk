@@ -12,7 +12,7 @@ function channelPerf(
     connection: RTCPeerConnection,
     channel: RTCDataChannel,
     targetMbps: number,
-    bytePerMsg: number = 256 * 1024,
+    bytePerMsg: number = 512 * 1024,
 ) {
     const interval = 1000 / (targetMbps * 1024 * 1024 / bytePerMsg);
     const msg = new Uint8Array(bytePerMsg);
@@ -49,8 +49,8 @@ async function createConnection(config: IClientConfig) {
 }
 
 async function initBenchAdmin() {
-    for (const rtcProfileName of ["p2pv6"]) {
-    //for (const rtcProfileName in ProfileRTC) {
+    //for (const rtcProfileName of ["p2pv6"]) {
+    for (const rtcProfileName in ProfileRTC) {
         speedOutput.innerText += `Starting ${rtcProfileName}\n`;
         //const allConfig
         const allConfig = updateConfigOverride(
