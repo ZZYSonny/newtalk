@@ -1,15 +1,17 @@
 import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
-import { IClientConfig, IIdentity, configFromURL, idFromURL } from "../common/interface";
-import { defaultClientConfig } from "../common/defaults_private";
+import { IClientConfig, createDefaultConfig, idFromURL, updateConfigOverride } from "../common/interface";
 
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;
 const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
 const reportCaption = document.getElementById("reportCaption") as HTMLSpanElement;
+
 const id = idFromURL();
 
 async function createConnection(configFromServer: IClientConfig) {
-    const config = configFromURL("override", configFromServer);
+    const config = updateConfigOverride(
+        "override", configFromServer
+    )
     console.log(`[Video][0][${id.role}] Parsed overriden config`, configFromServer, config)
 
     const pc = new RTCPeerConnection(config.rtc.peer);
@@ -77,9 +79,16 @@ async function initCall() {
     await initializeSocket(null);
     stateCaption.textContent = "Parsing Config...";
     if (id.role === "admin") {
-        const allConfig = configFromURL("all", defaultClientConfig);
-        const adminConfig = configFromURL("admin", allConfig);
-        const clientConfig = configFromURL("client", allConfig);
+        const adminConfig = updateConfigOverride(
+            "admin", updateConfigOverride(
+                "all", createDefaultConfig()
+            )
+        );
+        const clientConfig = updateConfigOverride(
+            "client", updateConfigOverride(
+                "all", createDefaultConfig()
+            )
+        );
         initializeWebRTCAdmin(
             id, adminConfig, clientConfig,
             (cfg) => createConnection(cfg),

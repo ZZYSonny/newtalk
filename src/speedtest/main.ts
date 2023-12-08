@@ -1,6 +1,5 @@
-import { IClientConfig, configFromURL, idFromURL } from "../common/interface";
+import { IClientConfig, ProfileRTC, createDefaultConfig, idFromURL, updateConfigOverride } from "../common/interface";
 import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
-import { defaultClientConfig, presetAudioConfig, presetRTCConfig, presetVideoConfig } from "../common/defaults_private";
 
 const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
 const speedOutput = document.getElementById("speedOutput") as HTMLSpanElement;
@@ -53,13 +52,14 @@ async function createConnection(config: IClientConfig) {
 
 async function initBenchAdmin() {
     //for (const rtcProfileName of ["p2pv6"]) {
-    for (const rtcProfileName in presetRTCConfig) {
+    for (const rtcProfileName in ProfileRTC) {
         speedOutput.innerText += `Starting ${rtcProfileName}\n`;
-        const allConfig: IClientConfig = {
-            rtc: presetRTCConfig[rtcProfileName],
-            video: presetVideoConfig["default"],
-            audio: presetAudioConfig["default"]
-        }
+        //const allConfig
+        const allConfig = updateConfigOverride(
+            "all",
+            createDefaultConfig(),
+            new Map([["all.profile.rtc", rtcProfileName]]), 
+        )
         initializeWebRTCAdmin(
             id, allConfig, allConfig,
             (c) => createConnection(c),

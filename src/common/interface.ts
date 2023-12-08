@@ -1,4 +1,4 @@
-import { presetAudioConfig, presetRTCConfig, presetVideoConfig } from "./defaults_private";
+import { registerProfile } from "./override"
 
 export interface IClientRTCConfig {
     peer: RTCConfiguration,
@@ -35,119 +35,111 @@ export interface IIdentity {
     role: "admin" | "client"
 }
 
-// Parse Parameter
-const param = new URLSearchParams(window.location.search);
+export const ProfileRTC: Record<string, Partial<IClientRTCConfig>> = {};
+export const ProfileVideo: Record<string, Partial<IClientVideoConfig>> = {};
+export const ProfileAudio: Record<string, Partial<IClientAudioConfig>> = {};
+registerProfile();
 
-export function idFromURL(): IIdentity {
+const search = new URLSearchParams(window.location.search);
+
+export function idFromURL(dict: URLSearchParams | Map<string, string> = search): IIdentity {
     return {
-        name: param.get("name") || param.get("role")!,
-        room: param.get("room")!,
-        role: param.get("role")! as ("admin" | "client"),
+        name: dict.get("name") || dict.get("role")!,
+        room: dict.get("room")!,
+        role: dict.get("role")! as ("admin" | "client"),
     }
 }
 
-function getArg<T>(prefix: string, name: string, f: (s: string) => T, defaultValue: T) {
-    const p = param.get(`${prefix}.${name}`);
-    if (!p) return defaultValue;
+function getArg<T>(dict: URLSearchParams | Map<string, string>, prefix: string, name: string, f: (s: string) => T) {
+    const p = dict.get(`${prefix}.${name}`);
+    if (!p) return undefined;
     else return f(p);
 }
 
-function getArgWithNull<T>(prefix: string, name: string, f: (s: string) => T, defaultValue: T) {
-    const p = param.get(`${prefix}.${name}`);
-    if (!p) return defaultValue;
-    else if (p == "null") return undefined;
-    else return f(p);
-}
-
-function iceServerFilter(servers: RTCIceServer[] | undefined, stunType: "all" | "tcp" | "udp") {
-    if (!servers || stunType == "all") {
-        return servers;
-    } else {
-        return servers.filter(s => {
-            if (typeof s.urls == "string") return s.urls.endsWith(stunType);
-            else return true;
-        })
-    }
-}
-
-export function configFromURL(prefix: string, defaultConfig: IClientConfig): IClientConfig {
-    function rtcFromURL(prefix: string, defaultConfig: IClientRTCConfig): IClientRTCConfig {
-        return {
-            peer: {
-                iceTransportPolicy: getArg(prefix, "rtc.transport",
-                    (s: string) => s as ("all" | "relay"),
-                    defaultConfig.peer.iceTransportPolicy),
-                iceServers: getArg(prefix, "rtc.stun",
-                    (s: string) => iceServerFilter(
-                        defaultConfig.peer.iceServers,
-                        s as ("all" | "tcp" | "udp")),
-                    defaultConfig.peer.iceServers),
-                iceCandidatePoolSize: defaultConfig.peer.iceCandidatePoolSize,
-                rtcpMuxPolicy: defaultConfig.peer.rtcpMuxPolicy,
-                bundlePolicy: defaultConfig.peer.bundlePolicy,
-                certificates: defaultConfig.peer.certificates
-            },
-            stack: getArg(prefix, "rtc.stack",
-                (s: string) => s as ("all" | "v4" | "v6"),
-                defaultConfig.stack),
-        }
-    }
-
-    function videoFromURL(prefix: string, defaultConfig: IClientVideoConfig): IClientVideoConfig {
-        return {
-            codecs: getArg(prefix, "video.codecs",
-                (s: string) => s.split(","),
-                defaultConfig.codecs
-            ),
-            bitrate: getArg(prefix, "video.bitrate",
-                (s: string) => parseInt(s),
-                defaultConfig.bitrate
-            ),
-            source: getArg(prefix, "video.source",
-                (s: string) => s as ("screen" | "camera"),
-                defaultConfig.source),
-            constraints: {
-                height: getArgWithNull(prefix, "video.height",
-                    (s: string) => { return { ideal: parseInt(s) } as ConstrainULong },
-                    defaultConfig.constraints.height
-                ),
-                width: getArgWithNull(prefix, "video.width",
-                    (s: string) => { return { ideal: parseInt(s) } as ConstrainULong },
-                    defaultConfig.constraints.width
-                ),
-                frameRate: getArgWithNull(prefix, "video.fps",
-                    (s: string) => { return { ideal: parseInt(s) } as ConstrainULong },
-                    defaultConfig.constraints.frameRate
-                ),
-                facingMode: getArgWithNull(prefix, "video.face",
-                    (s: string) => { return { ideal: s } as ConstrainDOMString },
-                    defaultConfig.constraints.facingMode
-                ),
+function applyPartialInPlace<T extends object>(origin: T, partial: undefined | Partial<T>): T {
+    if (partial) {
+        for (const k in partial) {
+            if (Array.isArray(partial[k])) {
+                origin[k] = partial[k] as any;
+            } else if (typeof origin[k] === 'object' && typeof partial[k] === 'object') {
+                origin[k] = applyPartialInPlace(origin[k] as any, partial[k] as any);
+            } else if (partial[k] !== undefined) {
+                origin[k] = partial[k] as any;
             }
         }
     }
+    return origin;
+}
 
-    function audioFromURL(prefix: string, defaultConfig: IClientAudioConfig): IClientAudioConfig {
-        return {
-            constraints: defaultConfig.constraints
+function updateConfigProfile(prefix: string, config: IClientConfig, dict: URLSearchParams | Map<string, string> = search) {
+    getArg(dict, prefix, "profile.rtc",
+        (s: string) => applyPartialInPlace(config.rtc, ProfileRTC[s])
+    )
+    getArg(dict, prefix, "profile.video",
+        (s: string) => applyPartialInPlace(config.video, ProfileVideo[s])
+    )
+    getArg(dict, prefix, "profile.audio",
+        (s: string) => applyPartialInPlace(config.audio, ProfileAudio[s])
+    )
+    return config;
+}
+
+
+export function updateConfigOverride(prefix: string, config: IClientConfig, dict: URLSearchParams | Map<string, string> = search) {
+    updateConfigProfile(prefix, config, dict);
+    applyPartialInPlace(config.rtc, {
+        stack: getArg(dict, prefix, "rtc.stack",
+            (s: string) => s as ("all" | "v4" | "v6")
+        ),
+    });
+    applyPartialInPlace(config.video, {
+        bitrate: getArg(dict, prefix, "video.bitrate",
+            (s: string) => parseInt(s)
+        ),
+        source: getArg(dict, prefix, "video.source",
+            (s: string) => s as ("screen" | "camera")
+        ),
+    });
+    applyPartialInPlace(config.audio, {});
+    return config;
+}
+
+export const createDefaultConfig = () => {
+    const config = {
+        rtc: {
+            peer: {
+                iceServers: [{
+                    urls: "stun:stun.l.google.com:19302"
+                }],
+                iceTransportPolicy: "all",
+                iceCandidatePoolSize: 16,
+                rtcpMuxPolicy: "require"
+            },
+            stack: "all"
+        },
+        video: {
+            codecs: ["AV1", "VP9"],
+            bitrate: 8,
+            source: "camera",
+            constraints: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 },
+                facingMode: { ideal: "user" },
+            }
+        },
+        audio: {
+            constraints: {
+                noiseSuppression: true,
+                echoCancellation: true,
+                autoGainControl: true,
+                channelCount: 2,
+                sampleRate: 44100,
+            }
         }
-    }
-
-    return {
-        rtc: rtcFromURL(prefix, getArg(
-            prefix, "rtc.profile",
-            (s: string) => presetRTCConfig[s],
-            defaultConfig.rtc
-        )),
-        video: videoFromURL(prefix, getArg(
-            prefix, "video.profile",
-            (s: string) => presetVideoConfig[s],
-            defaultConfig.video
-        )),
-        audio: audioFromURL(prefix, getArg(
-            prefix, "audio.profile",
-            (s: string) => presetAudioConfig[s],
-            defaultConfig.audio
-        ))
-    }
+    } as IClientConfig;
+    applyPartialInPlace(config.rtc, ProfileRTC["default"]);
+    applyPartialInPlace(config.video, ProfileVideo["default"]);
+    applyPartialInPlace(config.audio, ProfileAudio["default"]);
+    return config;
 }

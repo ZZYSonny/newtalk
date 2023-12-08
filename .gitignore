@@ -1,4 +1,4 @@
 node_modules
 public/js/*
-*_private.ts
+override.ts
 .zzy

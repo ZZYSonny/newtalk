@@ -14,7 +14,10 @@ export async function initializeSocket(url: string | null) {
 }
 
 function browserListeners(self: IIdentity) {
-    window.addEventListener("beforeunload", (ev) => socket.close());
+    window.addEventListener("beforeunload", (ev) => {
+        socket.close()
+        if(connection) connection.close();
+    });
     socket.on("refresh", () => window.location.reload())
     window.addEventListener("error", (ev) => {
         socket.emit("webrtc error", self, ev.error.toString());
@@ -64,22 +67,33 @@ async function initializeWebRTCStats(
             let curDict: RTCIceCandidatePairStats | null = null;
             for (const dict of report.values()) {
                 if (dict.type === "candidate-pair" && dict.nominated) {
-                    curDict = dict;
+                    if (!curDict || curDict.lastPacketSentTimestamp! < dict.lastPacketSentTimestamp) {
+                        curDict = dict;
+                    };
                 }
             }
             if (lastDict && curDict) {
-                reportConnection({
-                    recvMbps: (curDict.lastPacketReceivedTimestamp == lastDict.lastPacketReceivedTimestamp!)?0:(
-                        ((curDict.bytesReceived! - lastDict.bytesReceived!) / 1024 / 1024 * 8) /
-                        ((curDict.lastPacketReceivedTimestamp! - lastDict.lastPacketReceivedTimestamp!) / 1000)
-                    ),
-                    sendMbps: (curDict.lastPacketSentTimestamp! == lastDict.lastPacketSentTimestamp!)?0:(
-                        ((curDict.bytesSent! - lastDict.bytesSent!) / 1024 / 1024 * 8) /
-                        ((curDict.lastPacketSentTimestamp! - lastDict.lastPacketSentTimestamp!) / 1000)
-                    ),
-                    curDict: curDict,
-                    lastDict: lastDict
-                });
+                if (lastDict.id === curDict.id) {
+                    reportConnection({
+                        recvMbps: (curDict.lastPacketReceivedTimestamp == lastDict.lastPacketReceivedTimestamp!) ? 0 : (
+                            ((curDict.bytesReceived! - lastDict.bytesReceived!) / 1024 / 1024 * 8) /
+                            ((curDict.lastPacketReceivedTimestamp! - lastDict.lastPacketReceivedTimestamp!) / 1000)
+                        ),
+                        sendMbps: (curDict.lastPacketSentTimestamp! == lastDict.lastPacketSentTimestamp!) ? 0 : (
+                            ((curDict.bytesSent! - lastDict.bytesSent!) / 1024 / 1024 * 8) /
+                            ((curDict.lastPacketSentTimestamp! - lastDict.lastPacketSentTimestamp!) / 1000)
+                        ),
+                        curDict: curDict,
+                        lastDict: lastDict
+                    });
+                } else {
+                    reportConnection({
+                        recvMbps: -1,
+                        sendMbps: -1,
+                        curDict: curDict,
+                        lastDict: lastDict
+                    })
+                }
             }
             lastDict = curDict;
         }
