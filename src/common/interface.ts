@@ -23,10 +23,11 @@ export interface IClientConfig {
 }
 
 export interface INetReport {
-    recvMbps: number,
-    sendMbps: number,
-    curDict: RTCIceCandidatePairStats
-    lastDict: RTCIceCandidatePairStats
+    inMbps: number | undefined,
+    outMbps: number | undefined,
+    outMaxMbps: number | undefined,
+    outLoss: number | undefined,
+    summary: string
 }
 
 export interface IIdentity {

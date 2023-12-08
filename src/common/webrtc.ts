@@ -16,7 +16,7 @@ export async function initializeSocket(url: string | null) {
 function browserListeners(self: IIdentity) {
     window.addEventListener("beforeunload", (ev) => {
         socket.close()
-        if(connection) connection.close();
+        if (connection) connection.close();
     });
     socket.on("refresh", () => window.location.reload())
     window.addEventListener("error", (ev) => {
@@ -57,45 +57,70 @@ async function initializeWebRTCStats(
     connection: RTCPeerConnection, ms: number = 2000,
     reportConnection: (report: INetReport) => void
 ) {
-    let lastDict: RTCIceCandidatePairStats | null = null;
+    let lastStats: RTCStatsReport | undefined;
+    let lastPairID: string | undefined;
     await new Promise(r => window.setTimeout(r, ms));
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState !== "connected") {
             clearInterval(timer);
         } else {
-            const report = await connection.getStats();
-            let curDict: RTCIceCandidatePairStats | null = null;
-            for (const dict of report.values()) {
-                if (dict.type === "candidate-pair" && dict.nominated) {
-                    if (!curDict || curDict.lastPacketSentTimestamp! < dict.lastPacketSentTimestamp) {
-                        curDict = dict;
-                    };
-                }
-            }
-            if (lastDict && curDict) {
-                if (lastDict.id === curDict.id) {
-                    reportConnection({
-                        recvMbps: (curDict.lastPacketReceivedTimestamp == lastDict.lastPacketReceivedTimestamp!) ? 0 : (
+            const curStats = await connection.getStats();
+            let PairInMbps: number | undefined;
+            let PairOutMbps: number | undefined;
+            let PairOutMaxMbps: number | undefined;
+            let PairOutLoss: number | undefined;
+
+            if (lastStats) {
+                if (lastPairID) {
+                    const curDict: RTCIceCandidatePairStats = curStats.get(lastPairID)!;
+                    const lastDict: RTCIceCandidatePairStats = lastStats.get(lastPairID)!;
+                    console.log(curDict, lastDict)
+                    if (curDict.nominated) {
+                        const recvDiffMs = curDict.lastPacketReceivedTimestamp! - lastDict.lastPacketReceivedTimestamp!;
+                        PairInMbps = (recvDiffMs === 0) ? 0 : (
                             ((curDict.bytesReceived! - lastDict.bytesReceived!) / 1024 / 1024 * 8) /
-                            ((curDict.lastPacketReceivedTimestamp! - lastDict.lastPacketReceivedTimestamp!) / 1000)
-                        ),
-                        sendMbps: (curDict.lastPacketSentTimestamp! == lastDict.lastPacketSentTimestamp!) ? 0 : (
+                            (recvDiffMs / 1000)
+                        );
+                        const sendDiffMs = curDict.lastPacketSentTimestamp! - lastDict.lastPacketSentTimestamp!;
+                        PairOutMbps = (sendDiffMs === 0) ? 0 : (
                             ((curDict.bytesSent! - lastDict.bytesSent!) / 1024 / 1024 * 8) /
-                            ((curDict.lastPacketSentTimestamp! - lastDict.lastPacketSentTimestamp!) / 1000)
-                        ),
-                        curDict: curDict,
-                        lastDict: lastDict
-                    });
-                } else {
-                    reportConnection({
-                        recvMbps: -1,
-                        sendMbps: -1,
-                        curDict: curDict,
-                        lastDict: lastDict
-                    })
+                            (sendDiffMs / 1000)
+                        )
+                        if (curDict.availableOutgoingBitrate) {
+                            PairOutMaxMbps = curDict.availableOutgoingBitrate! / 1024 / 1024
+                        }
+                        PairOutLoss = (curDict as any).packetsDiscardedOnSend / (curDict as any).packetsSent * 100;
+                    } else {
+                        lastPairID = undefined;
+                    }
                 }
             }
-            lastDict = curDict;
+            if (!lastStats) {
+                for (const dict of curStats.values()) {
+                    if (dict.type === "candidate-pair" && dict.nominated) {
+                        lastPairID = dict.id;
+                    }
+                }
+            }
+            for (const dict of curStats.values()) {
+                if (dict.type === "outbound-rtp" && dict.type === "video") {
+                    const curDict = dict as RTCOutboundRtpStreamStats;
+                    PairOutLoss = curDict.retransmittedPacketsSent! / curDict.packetsSent! * 100;
+                }
+            }
+            lastStats = curStats;
+            reportConnection({
+                inMbps: PairInMbps,
+                outMbps: PairOutMbps,
+                outMaxMbps: PairOutMaxMbps,
+                outLoss: PairOutLoss,
+                summary: [
+                    `${PairInMbps?.toPrecision(2) || "?"}↓`,
+                    `${PairOutMbps?.toPrecision(2) || "?"}↑`,
+                    `${PairOutLoss?.toPrecision(2) || "?"}%`,
+                    `${PairOutMaxMbps?.toPrecision(2) || "?"}`
+                ].join(" ")
+            })
         }
     }, ms)
 }
@@ -166,14 +191,12 @@ export function initializeWebRTCAdmin(
     })
 
     socket.on("webrtc ice broadcast", (other: IIdentity, ice: RTCIceCandidateInit) => {
-        if (connection) {
-            if (connection.remoteDescription) {
-                console.info(`[ICE][Admin] Consumed ICE Directly`, ice);
-                connection.addIceCandidate(ice);
-            } else {
-                console.info(`[ICE][Admin] Queued ICE`, ice);
-                iceQueue.push(ice);
-            }
+        if (connection && connection.connectionState !== "closed" && connection.remoteDescription) {
+            console.info(`[ICE][Admin] Consumed ICE Directly`, ice);
+            connection.addIceCandidate(ice);
+        } else {
+            console.info(`[ICE][Admin] Queued ICE`, ice);
+            iceQueue.push(ice);
         }
     })
 
@@ -232,14 +255,12 @@ export function initializeWebRTCClient(
     })
 
     socket.on("webrtc ice broadcast", (other: IIdentity, ice: RTCIceCandidateInit) => {
-        if (connection) {
-            if (connection.remoteDescription) {
-                console.info(`[ICE][Client] Consumed ICE Directly`, ice);
-                connection.addIceCandidate(ice);
-            } else {
-                console.info(`[ICE][Client] Queued ICE`, ice);
-                iceQueue.push(ice);
-            }
+        if (connection && connection.connectionState !== "closed" && connection.remoteDescription) {
+            console.info(`[ICE][Client] Consumed ICE Directly`, ice);
+            connection.addIceCandidate(ice);
+        } else {
+            console.info(`[ICE][Client] Queued ICE`, ice);
+            iceQueue.push(ice);
         }
     })
 

@@ -15,9 +15,7 @@ function channelPerf(
     bytePerMsg: number = 256 * 1024,
 ) {
     const interval = 1000 / (targetMbps * 1024 * 1024 / bytePerMsg);
-    console.log(interval)
     const msg = new Uint8Array(bytePerMsg);
-
     const timer = setInterval(() => {
         if (channel.readyState == "open") {
             channel.send(msg);
@@ -51,8 +49,8 @@ async function createConnection(config: IClientConfig) {
 }
 
 async function initBenchAdmin() {
-    //for (const rtcProfileName of ["p2pv6"]) {
-    for (const rtcProfileName in ProfileRTC) {
+    for (const rtcProfileName of ["p2pv6"]) {
+    //for (const rtcProfileName in ProfileRTC) {
         speedOutput.innerText += `Starting ${rtcProfileName}\n`;
         //const allConfig
         const allConfig = updateConfigOverride(
@@ -65,7 +63,7 @@ async function initBenchAdmin() {
             (c) => createConnection(c),
             (s) => stateCaption.innerText = s,
             (c) => {},
-            (r) => speedOutput.innerText += `${r.recvMbps.toPrecision(2)}↓ ${r.sendMbps.toPrecision(2)}↑\n`
+            (r) => speedOutput.innerText += r.summary + "\n"
         );
         await new Promise(r => window.setTimeout(r, (TOTAL_SEC+2)*1000));
     }
