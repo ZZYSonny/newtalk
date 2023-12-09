@@ -208,6 +208,7 @@ export function initializeWebRTCAdmin(
 
     socket.on("room full message", (room) => {
         socket.removeAllListeners();
+        alert("Room is full");
         throw "Room is full";
     });
 
@@ -272,6 +273,7 @@ export function initializeWebRTCClient(
 
     socket.on("room full message", () => {
         socket.removeAllListeners();
+        alert("Room is full");
         throw ("Room is full");
     });
 
