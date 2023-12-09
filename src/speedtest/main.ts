@@ -55,6 +55,8 @@ async function createConnection(config: IClientConfig) {
 async function initBenchAdmin() {
     //for (const rtcProfileName of ["p2pv6"]) {
     for (const rtcProfileName of Object.keys(ProfileRTC).sort()) {
+        speedOutput.innerText += `---------------\n`;
+        speedOutput.innerText += `\n`;
         speedOutput.innerText += `Starting ${rtcProfileName}\n`;
         //const allConfig
         const allConfig = updateConfigOverride(
