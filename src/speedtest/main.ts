@@ -6,8 +6,8 @@ const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
 const speedOutput = document.getElementById("speedOutput") as HTMLSpanElement;
 
 const id = idFromURL();
-
 const TOTAL_SEC = 12;
+let rtcProfileName = "NEW";
 
 function perfChannel(
     connection: RTCPeerConnection,
@@ -31,15 +31,17 @@ function perfChannel(
     }, TOTAL_SEC * 1000)
 }
 
-function perfLogStart(stage: string){
-    speedOutput.innerText += `\nStarting ${stage}\n`;
+function perfLogStart(verb: string, stage: string){
+    speedOutput.innerText += `${verb} ${stage}\n`;
     console.log(`[PERF]`);
-    console.log(`[PERF] Starting ${stage}`);
+    console.log(`[PERF] ${verb} ${stage}`);
 }
 
 function perfLogSummary(side: string, r: INetReport){
-    speedOutput.innerText += `${side.padEnd(8," ")} ${r.summary.map(s=>s.padEnd(8, " ")).join("")}\n`;
-    console.log(`[PERF][${side}] ${r.summary.map(s=>s.padEnd(8, " ")).join("")}`);
+    const labels = `[${r.id}][${side}]    `;
+    const items = r.summary.map(s=>s.padEnd(8, " ")).join("");
+    speedOutput.innerText += `${labels}${items}\n`;
+    console.log(`[PERF]${labels}${items}`);
 }
 
 async function perfLocalReport(r: INetReport){
@@ -52,7 +54,6 @@ async function createConnection(config: IClientConfig) {
     socket.on("webrtc debug broadcast", (id, r) => {
         perfLogSummary("REMOT", r);
     })
-
     const pc = new RTCPeerConnection(config.rtc.peer);
     if (id.role === "admin") {
         const ch = pc.createDataChannel("test", {
@@ -72,8 +73,8 @@ async function createConnection(config: IClientConfig) {
 
 async function initBenchAdmin() {
     //for (const rtcProfileName of ["p2pv6"]) {
-    for (const rtcProfileName of Object.keys(ProfileRTC).sort()) {
-        perfLogStart(rtcProfileName);
+    for (rtcProfileName of Object.keys(ProfileRTC).sort()) {
+        perfLogStart("Starting", rtcProfileName);
         //const allConfig
         const allConfig = updateConfigOverride(
             "all",
@@ -84,10 +85,12 @@ async function initBenchAdmin() {
             id, allConfig, allConfig,
             (c) => createConnection(c),
             (s) => stateCaption.innerText = s,
-            (c) => {},
+            (c) => perfLogStart("Connected", rtcProfileName),
             (r) => perfLocalReport(r)
         );
         await new Promise(r => window.setTimeout(r, (TOTAL_SEC+2)*1000));
+        perfLogStart("Finished", rtcProfileName);
+        perfLogStart("", "");
     }
 
 }
@@ -102,12 +105,9 @@ async function initCall() {
     } else if (id.role === "client") {
         initializeWebRTCClient(
             id,
-            (c) => {
-                perfLogStart(`New`);
-                return createConnection(c)
-            },
+            (c) => createConnection(c),
             (s) => stateCaption.innerText = s,
-            (c) => {},
+            (c) => perfLogStart("Connected", rtcProfileName),
             (r) => perfLocalReport(r)
         )
     }

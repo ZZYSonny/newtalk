@@ -111,7 +111,6 @@ async function initializeWebRTCStats(
             }
 
             if (PairInMbps || PairOutMbps || PairOutMaxMbps || PairOutLoss) {
-                summary.push(`${curID}`);
                 if(PairInMbps) summary.push(`${PairInMbps.toFixed(1)}↓`);
                 if(PairOutMbps) summary.push(`${PairOutMbps.toFixed(1)}↑`);
                 if(PairOutLoss) summary.push(`${PairOutLoss.toFixed(0)}%`);
