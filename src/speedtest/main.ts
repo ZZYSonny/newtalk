@@ -13,7 +13,7 @@ function perfChannel(
     connection: RTCPeerConnection,
     channel: RTCDataChannel,
     targetMbps: number,
-    bytePerMsg: number = 32 * 1024,
+    bytePerMsg: number = 256 * 1024,
 ) {
     const interval = 1000 / (targetMbps / 8 * 1024 * 1024 / bytePerMsg );
     const msg = new Uint8Array(bytePerMsg);
