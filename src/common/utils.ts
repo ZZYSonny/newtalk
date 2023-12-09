@@ -10,6 +10,10 @@ export function idFromURL(dict: URLSearchParams | Map<string, string> = search):
     }
 }
 
+export function profileFromURL(dict: URLSearchParams | Map<string, string> = search): string[] {
+    return dict.get("all.profile.rtc")?.split("-") || Object.keys(ProfileRTC).sort();
+}
+
 function getArg<T>(dict: URLSearchParams | Map<string, string>, prefix: string, name: string, f: (s: string) => T) {
     const p = dict.get(`${prefix}.${name}`);
     if (!p) return undefined;

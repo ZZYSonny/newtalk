@@ -1,5 +1,5 @@
-import { IClientConfig, INetReport, ProfileRTC} from "../common/interface";
-import {createDefaultConfig, idFromURL, updateConfigOverride} from "../common/utils";
+import { IClientConfig, INetReport} from "../common/interface";
+import {createDefaultConfig, idFromURL, profileFromURL, updateConfigOverride} from "../common/utils";
 import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, socket } from "../common/webrtc";
 
 const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
@@ -71,8 +71,7 @@ async function createConnection(config: IClientConfig) {
 }
 
 async function initBenchAdmin() {
-    //for (const rtcProfileName of ["p2pv6"]) {
-    for (rtcProfileName of Object.keys(ProfileRTC).sort()) {
+    for (rtcProfileName of profileFromURL()) {
         perfLogStart("Starting", rtcProfileName);
         //const allConfig
         const allConfig = updateConfigOverride(
