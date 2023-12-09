@@ -84,12 +84,14 @@ async function initBenchAdmin() {
             id, allConfig, allConfig,
             (c) => createConnection(c),
             (s) => stateCaption.innerText = s,
-            (c) => perfLogStart("Connected", rtcProfileName),
+            (c) => {
+                perfLogStart("", "");
+                perfLogStart("Connected", rtcProfileName)
+            },
             (r) => perfLocalReport(r)
         );
         await new Promise(r => window.setTimeout(r, (TOTAL_SEC+2)*1000));
         perfLogStart("Finished", rtcProfileName);
-        perfLogStart("", "");
     }
 
 }
@@ -106,7 +108,10 @@ async function initCall() {
             id,
             (c) => createConnection(c),
             (s) => stateCaption.innerText = s,
-            (c) => perfLogStart("Connected", rtcProfileName),
+            (c) => {
+                perfLogStart("", "");
+                perfLogStart("Connected", rtcProfileName)
+            },
             (r) => perfLocalReport(r)
         )
     }
