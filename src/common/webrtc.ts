@@ -111,10 +111,10 @@ async function initializeWebRTCStats(
             }
 
             if (PairInMbps || PairOutMbps || PairOutMaxMbps || PairOutLoss) {
-                if(PairInMbps) summary.push(`${PairInMbps.toFixed(1)}↓`);
-                if(PairOutMbps) summary.push(`${PairOutMbps.toFixed(1)}↑`);
-                if(PairOutLoss) summary.push(`${PairOutLoss.toFixed(0)}%`);
-                if(PairOutMaxMbps) summary.push(`(${PairOutMaxMbps.toFixed(1)})`);                
+                if(PairInMbps!==undefined) summary.push(`${PairInMbps.toFixed(1)}↓`);
+                if(PairOutMbps!==undefined) summary.push(`${PairOutMbps.toFixed(1)}↑`);
+                if(PairOutMaxMbps!==undefined) summary.push(`(${PairOutMaxMbps.toFixed(1)})`);                
+                if(PairOutLoss!==undefined) summary.push(`${PairOutLoss.toFixed(0)}%`);
 
                 reportConnection({
                     id: curID,
