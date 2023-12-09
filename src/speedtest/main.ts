@@ -33,7 +33,6 @@ function perfChannel(
 
 function perfLogStart(verb: string, stage: string){
     speedOutput.innerText += `${verb} ${stage}\n`;
-    console.log(`[PERF]`);
     console.log(`[PERF] ${verb} ${stage}`);
 }
 
