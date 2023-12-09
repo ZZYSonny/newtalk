@@ -49,6 +49,10 @@ io.sockets.on('connection', (socket) => {
     socket.to(id.room).emit("webrtc error broadcast", id, ...args);
   })
 
+  socket.on("webrtc debug", (id: IIdentity, ...args) => {
+    console.log(`Name ${id.name} Role ${id.role} sends debug message to Room ${id.room}\n>> ${args.join("\n")}`)
+    socket.to(id.room).emit("webrtc debug broadcast", id, ...args);
+  })
 })
 
 export const esbuildReloadPlugin: esbuild.Plugin = {

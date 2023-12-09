@@ -23,6 +23,7 @@ export interface IClientConfig {
 }
 
 export interface INetReport {
+    id: number,
     inMbps: number | undefined,
     outMbps: number | undefined,
     outMaxMbps: number | undefined,

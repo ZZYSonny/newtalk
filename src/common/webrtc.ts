@@ -3,7 +3,7 @@ import { IClientConfig, IIdentity, INetReport } from "./interface";
 import ipRegex from 'ip-regex';
 
 let connection: RTCPeerConnection;
-let socket: Socket;
+export let socket: Socket;
 
 export async function initializeSocket(url: string | null) {
     if (url) {
@@ -57,9 +57,10 @@ async function initializeWebRTCStats(
     connection: RTCPeerConnection, ms: number = 2000,
     reportConnection: (report: INetReport) => void
 ) {
+    let curID = 0;
     let lastStats: RTCStatsReport | undefined;
     let lastPairID: string | undefined;
-    await new Promise(r => window.setTimeout(r, ms));
+    await new Promise(r => window.setTimeout(r, 2*ms));
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState !== "connected") {
             clearInterval(timer);
@@ -107,19 +108,24 @@ async function initializeWebRTCStats(
                     PairOutLoss = curDict.retransmittedPacketsSent! / curDict.packetsSent! * 100;
                 }
             }
+
+            if (PairInMbps || PairOutMbps || PairOutMaxMbps || PairOutLoss) {
+                reportConnection({
+                    id: curID,
+                    inMbps: PairInMbps,
+                    outMbps: PairOutMbps,
+                    outMaxMbps: PairOutMaxMbps,
+                    outLoss: PairOutLoss,
+                    summary: [
+                        `${PairInMbps?.toFixed(1) || "?"}↓`,
+                        `${PairOutMbps?.toFixed(1) || "?"}↑`,
+                        `${PairOutLoss?.toFixed(0) || "?"}%`,
+                        `${PairOutMaxMbps?.toFixed(1) || "?"}`
+                    ].join(" ")
+                })
+            }
+            curID++;
             lastStats = curStats;
-            reportConnection({
-                inMbps: PairInMbps,
-                outMbps: PairOutMbps,
-                outMaxMbps: PairOutMaxMbps,
-                outLoss: PairOutLoss,
-                summary: [
-                    `${PairInMbps?.toPrecision(2) || "?"}↓`,
-                    `${PairOutMbps?.toPrecision(2) || "?"}↑`,
-                    `${PairOutLoss?.toPrecision(2) || "?"}%`,
-                    `${PairOutMaxMbps?.toPrecision(2) || "?"}`
-                ].join(" ")
-            })
         }
     }, ms)
 }
