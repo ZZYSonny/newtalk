@@ -6,7 +6,7 @@ const speedOutput = document.getElementById("speedOutput") as HTMLSpanElement;
 
 const id = idFromURL();
 
-const TOTAL_SEC = 15;
+const TOTAL_SEC = 12;
 
 function channelPerf(
     connection: RTCPeerConnection,

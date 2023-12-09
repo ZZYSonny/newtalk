@@ -60,7 +60,7 @@ async function initializeWebRTCStats(
     let curID = 0;
     let lastStats: RTCStatsReport | undefined;
     let lastPairID: string | undefined;
-    await new Promise(r => window.setTimeout(r, 2*ms));
+    await new Promise(r => window.setTimeout(r, ms));
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState !== "connected") {
             clearInterval(timer);
