@@ -120,7 +120,7 @@ async function initializeWebRTCStats(
                         `${PairInMbps?.toFixed(1) || "?"}↓`,
                         `${PairOutMbps?.toFixed(1) || "?"}↑`,
                         `${PairOutLoss?.toFixed(0) || "?"}%`,
-                        `${PairOutMaxMbps?.toFixed(1) || "?"}`
+                        `(${PairOutMaxMbps?.toFixed(1) || "?"})`
                     ].join(" ")
                 })
             }
