@@ -3,7 +3,7 @@ import * as http from "http";
 import express from 'express';
 import { esbuildReloadPlugin, io } from "./signal";
 
-const devMode = process.argv.includes("--dev");
+const devMode = process.argv.includes("dev");
 
 
 (async () => {

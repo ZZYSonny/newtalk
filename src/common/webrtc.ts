@@ -70,6 +70,7 @@ async function initializeWebRTCStats(
             let PairOutMbps: number | undefined;
             let PairOutMaxMbps: number | undefined;
             let PairOutLoss: number | undefined;
+            let summary: string[] = []
 
             if (lastStats) {
                 if (lastPairID) {
@@ -110,18 +111,19 @@ async function initializeWebRTCStats(
             }
 
             if (PairInMbps || PairOutMbps || PairOutMaxMbps || PairOutLoss) {
+                summary.push(`${curID}`);
+                if(PairInMbps) summary.push(`${PairInMbps.toFixed(1)}↓`);
+                if(PairOutMbps) summary.push(`${PairOutMbps.toFixed(1)}↑`);
+                if(PairOutLoss) summary.push(`${PairOutLoss.toFixed(0)}%`);
+                if(PairOutMaxMbps) summary.push(`(${PairOutMaxMbps.toFixed(1)})`);                
+
                 reportConnection({
                     id: curID,
                     inMbps: PairInMbps,
                     outMbps: PairOutMbps,
                     outMaxMbps: PairOutMaxMbps,
                     outLoss: PairOutLoss,
-                    summary: [
-                        `${PairInMbps?.toFixed(1) || "?"}↓`,
-                        `${PairOutMbps?.toFixed(1) || "?"}↑`,
-                        `${PairOutLoss?.toFixed(0) || "?"}%`,
-                        `(${PairOutMaxMbps?.toFixed(1) || "?"})`
-                    ].join(" ")
+                    summary: summary
                 })
             }
             curID++;

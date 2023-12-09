@@ -1,5 +1,6 @@
 import { initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
-import { IClientConfig, createDefaultConfig, idFromURL, updateConfigOverride } from "../common/interface";
+import { createDefaultConfig, idFromURL, updateConfigOverride } from "../common/utils";
+import { IClientConfig } from "../common/interface";
 
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;
@@ -94,7 +95,7 @@ async function initCall() {
             (cfg) => createConnection(cfg),
             (state) => stateCaption.textContent = state,
             (connection) => {},
-            (r) => reportCaption.innerText = r.summary
+            (r) => reportCaption.innerText = r.summary.join(" ")
         );
     } else if (id.role === "client") {
         initializeWebRTCClient(
@@ -102,7 +103,7 @@ async function initCall() {
             (cfg) => createConnection(cfg),
             (state) => stateCaption.textContent = state,
             (connection) => {},
-            (r) => reportCaption.innerText = r.summary
+            (r) => reportCaption.innerText = r.summary.join(" ")
         );
     }
 }

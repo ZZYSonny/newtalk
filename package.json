@@ -5,15 +5,16 @@
     "esbuild": "^0.19.5",
     "express": "^4.18.2",
     "ip-regex": "^5.0.0",
+    "puppeteer-core": "^21.6.0",
     "socket.io": "^4.7.2",
     "socket.io-client": "^4.7.2",
     "tsx": "^4.1.1",
     "typescript": "^5.2.2"
   },
   "scripts": {
-    "dev": "tsx src/backend/main.ts --dev",
+    "dev": "tsx src/backend/main.ts dev",
     "prod": "tsx src/backend/main.ts",
-    "speed-admin": "bash src/speedtest/launch.sh admin",
-    "speed-client": "bash src/speedtest/launch.sh client nogui"
+    "speed-admin": "tsx src/speedtest/launch.ts admin",
+    "speed-client": "tsx src/speedtest/launch.ts client"
   }
 }
