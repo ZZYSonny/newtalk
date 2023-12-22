@@ -32,7 +32,7 @@ async function createConnection(config: IClientConfig) {
     socket.on("webrtc debug broadcast", (id, r) => {
         perfLogSummary("REMOTE", r);
     })
-    while(localVideo.paused){
+    while (localVideo.paused) {
         localVideo.play();
         await new Promise(resolve => setTimeout(resolve, 100));
     }
@@ -41,7 +41,7 @@ async function createConnection(config: IClientConfig) {
     // Set Local Video
     return createConnectionFromStream(
         id, config, localStream,
-        (remoteStream) => { 
+        (remoteStream) => {
             console.log("remote stream");
             remoteVideo.srcObject = remoteStream
         }
@@ -54,8 +54,8 @@ async function initCall() {
     stateCaption.textContent = "Parsing Config...";
 
     if (id.role === "admin") {
-        for (rtcProfileName of ["p6"]) {
-            //for (rtcProfileName of profileFromURL()) {
+        //for (rtcProfileName of ["p6"]) {
+        for (rtcProfileName of profileFromURL()) {
             perfLogStart("Starting", rtcProfileName);
             const allConfig = updateConfigOverride(
                 "all",
