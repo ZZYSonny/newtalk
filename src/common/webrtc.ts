@@ -1,5 +1,5 @@
 import { io, connect, Socket } from "socket.io-client";
-import { IClientConfig, IIdentity, INetReport } from "./interface";
+import { IClientConfig, IClientStatsConfig, IIdentity, INetReport } from "./interface";
 import ipRegex from 'ip-regex';
 
 let connection: RTCPeerConnection;
@@ -90,13 +90,13 @@ export function createConnectionFromStream(
 }
 
 async function initializeWebRTCStats(
-    connection: RTCPeerConnection, ms: number = 2000,
+    connection: RTCPeerConnection, config: IClientStatsConfig,
     reportConnection: (report: INetReport) => void
 ) {
     let curID = 0;
     let lastStats: RTCStatsReport | undefined;
     let lastPairID: string | undefined;
-    await new Promise(r => window.setTimeout(r, ms));
+    await new Promise(r => window.setTimeout(r, config.delay*1000));
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState !== "connected") {
             clearInterval(timer);
@@ -164,11 +164,11 @@ async function initializeWebRTCStats(
             curID++;
             lastStats = curStats;
         }
-    }, ms)
+    }, config.interval * 1000)
 }
 
 function cbInitialConnected(
-    connection: RTCPeerConnection, self: IIdentity, other: IIdentity,
+    connection: RTCPeerConnection, self: IIdentity, other: IIdentity, config: IClientConfig,
     updateProgress: ((state: string) => void) | null,
     postConnection: ((connection: RTCPeerConnection) => void) | null,
     reportConnection: null | ((report: INetReport) => void)
@@ -178,7 +178,7 @@ function cbInitialConnected(
         connection.onconnectionstatechange = null;
         if (updateProgress) updateProgress(other.name);
         if (postConnection) postConnection(connection);
-        if (reportConnection) initializeWebRTCStats(connection, 2000, reportConnection);
+        if (reportConnection) initializeWebRTCStats(connection, config.rtc.stats, reportConnection);
     }
 }
 
@@ -225,7 +225,7 @@ export function initializeWebRTCAdmin(
         console.info(`[RTC][2.2][Admin] Set Answer`, answer);
 
         if (updateProgress) updateProgress("Waiting for Connection...");
-        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, updateProgress, postConnection, reportConnection);
+        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection);
         for (const ice of iceQueue) {
             console.info(`[ICE][Admin] Consumed ICE From Queue`, ice);
             connection.addIceCandidate(ice);
@@ -294,7 +294,7 @@ export function initializeWebRTCClient(
             connection.addIceCandidate(ice);
         }
 
-        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, updateProgress, postConnection, reportConnection);
+        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection);
     })
 
     socket.on("webrtc ice broadcast", (other: IIdentity, ice: RTCIceCandidateInit) => {

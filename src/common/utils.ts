@@ -79,7 +79,11 @@ export const createDefaultConfig = () => {
                 iceCandidatePoolSize: 16,
                 rtcpMuxPolicy: "require"
             },
-            stack: "all"
+            stack: "all",
+            stats: {
+                delay: 2,
+                interval: 3
+            }
         },
         video: {
             codecs: ["AV1", "VP9"],

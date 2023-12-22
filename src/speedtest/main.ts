@@ -60,13 +60,17 @@ async function initCall() {
         //for (rtcProfileName of ["p6"]) {
         for (rtcProfileName of profileFromURL()) {
             perfLogStart("Starting", rtcProfileName);
-            const allConfig = updateConfigOverride(
+            const speedConfig = updateConfigOverride(
                 "all",
                 createDefaultConfig(),
                 new Map([
-                    ["all.profile.rtc", rtcProfileName],
+                    ["all.profile.rtc", "speed"],
                     ["all.profile.video", "speed"]
                 ]),
+            )
+            const allConfig = updateConfigOverride(
+                "all", speedConfig,
+                new Map([["all.profile.rtc", rtcProfileName]])
             )
             initializeWebRTCAdmin(
                 id, allConfig, allConfig,

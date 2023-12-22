@@ -3,6 +3,12 @@ import { registerProfile } from "./override"
 export interface IClientRTCConfig {
     peer: RTCConfiguration,
     stack: "all" | "v4" | "v6"
+    stats: IClientStatsConfig
+}
+
+export interface IClientStatsConfig {
+    delay: number,
+    interval: number
 }
 
 export interface IClientVideoConfig {
