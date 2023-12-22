@@ -53,6 +53,42 @@ function cbInitialIceCandidate(connection: RTCPeerConnection, self: IIdentity, c
     }
 }
 
+export function createConnectionFromStream(
+    self: IIdentity, config: IClientConfig, localStream: MediaStream,
+    useRemoteStream: (stream: MediaStream) => void
+){
+    console.log(`[Video][0][${self.role}] Using config`, config, config)
+    const pc = new RTCPeerConnection(config.rtc.peer);
+
+    // Send Video
+    localStream.getTracks().forEach((track) => {
+        console.log(`[Video][1][${self.role}] Sending RTC Track Type ${track.kind}`)
+        pc.addTrack(track, localStream);
+    });
+
+    // Receive Video
+    pc.ontrack = (ev) => {
+        console.log(`[Video][2][${self.role}] Receiving RTC Track Type ${ev.track.kind}`)
+        if (ev.track.kind == "video") {
+            useRemoteStream(ev.streams[0]);
+        }
+    }
+
+    // Set Preferred video codec
+    const videoTransceiver = pc.getTransceivers().find((s) => (s.sender.track ? s.sender.track.kind === 'video' : false))!;
+    const supportVideoCodec = RTCRtpSender.getCapabilities('video')!.codecs;
+    const selectedVideoCodec = config.video.codecs.map((name) => supportVideoCodec.filter((codec) => codec.mimeType.includes(name))).flat();
+    videoTransceiver.setCodecPreferences(selectedVideoCodec);
+
+    // Set Preferred bitrate
+    const videoSender = videoTransceiver.sender;
+    const videoParameters = videoSender.getParameters();
+    videoParameters.encodings[0].maxBitrate = config.video.bitrate * 1000000;
+    videoSender.setParameters(videoParameters);
+
+    return pc;
+}
+
 async function initializeWebRTCStats(
     connection: RTCPeerConnection, ms: number = 2000,
     reportConnection: (report: INetReport) => void
