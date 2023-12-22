@@ -41,9 +41,12 @@ async function createConnection(config: IClientConfig) {
     // Set Local Video
     return createConnectionFromStream(
         id, config, localStream,
-        (remoteStream) => {
-            console.log("remote stream");
+        async (remoteStream) => {
             remoteVideo.srcObject = remoteStream
+            while (localVideo.paused) {
+                localVideo.play();
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }        
         }
     )
 }
