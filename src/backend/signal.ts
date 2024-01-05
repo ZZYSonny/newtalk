@@ -53,6 +53,11 @@ io.sockets.on('connection', (socket) => {
     console.log(`Name ${id.name} Role ${id.role} sends debug message to Room ${id.room}\n>> ${args.join("\n")}`)
     socket.to(id.room).emit("webrtc debug broadcast", id, ...args);
   })
+
+  socket.on("control refresh", ()=>{
+    console.log(`One client sends refresh signal to all clients`)
+    io.emit("refresh")
+  })
 })
 
 export const esbuildReloadPlugin: esbuild.Plugin = {

@@ -12,7 +12,8 @@ const devMode = process.argv.includes("dev");
         target: "es2022",
         entryPoints: [
             'src/frontend/main.ts',
-            'src/speedtest/main.ts'
+            'src/speedtest/main.ts',
+            'src/control/main.ts'
         ],
         outdir: "public/js",
         bundle: true,
