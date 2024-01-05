@@ -87,7 +87,7 @@ export const createDefaultConfig = () => {
         },
         video: {
             codecs: ["AV1", "VP9"],
-            bitrate: 8,
+            bitrate: 6,
             source: "camera",
             constraints: {
                 width: { ideal: 1280 },
