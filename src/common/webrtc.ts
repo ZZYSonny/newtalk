@@ -18,7 +18,7 @@ function browserListeners(self: IIdentity) {
         socket.close()
         if (connection) connection.close();
     });
-    socket.on("refresh", () => window.location.reload())
+    socket.on("page refresh", () => window.location.reload())
     window.addEventListener("error", (ev) => {
         socket.emit("webrtc error", self, ev.error.toString());
     });

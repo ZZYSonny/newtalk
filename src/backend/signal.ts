@@ -56,7 +56,7 @@ io.sockets.on('connection', (socket) => {
 
   socket.on("control refresh", ()=>{
     console.log(`One client sends refresh signal to all clients`)
-    io.emit("refresh")
+    io.emit("page refresh")
   })
 })
 
@@ -65,7 +65,7 @@ export const esbuildReloadPlugin: esbuild.Plugin = {
   setup: (build) => {
     build.onEnd(result => {
       console.log("File changed. Refresh all clients")
-      io.emit("refresh");
+      io.emit("page refresh");
     })
   }
 }
