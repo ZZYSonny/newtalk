@@ -98,7 +98,7 @@ async function initializeWebRTCStats(
     let lastPairID: string | undefined;
     await new Promise(r => window.setTimeout(r, config.delay*1000));
     const timer = window.setInterval(async () => {
-        if (connection.iceConnectionState !== "connected") {
+        if (connection.iceConnectionState === "closed") {
             clearInterval(timer);
         } else {
             const curStats = await connection.getStats();
