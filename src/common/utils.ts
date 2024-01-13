@@ -110,29 +110,29 @@ export const createDefaultConfig = () => {
     return config;
 }
 
-export const getMediaStream = async(config: IClientConfig, overrideConfig: RecursivePartial<IClientConfig>) => {
+export const getMediaStream = async (config: IClientConfig, overrideConfig: RecursivePartial<IClientConfig>) => {
     const videoSource = overrideConfig?.video?.source || config.video.source || "camera";
     // First try all resolutions
-    for(const resolution of config.video.resolution){
+    for (const resolution of config.video.resolution) {
         const videoConstraint: MediaTrackConstraints = {
-            width: {ideal: resolution[0]},
-            height: {ideal: resolution[1]},
-            frameRate: {ideal: resolution[2]},
+            width: { ideal: resolution[0] },
+            height: { ideal: resolution[1] },
+            frameRate: { ideal: resolution[2] },
         }
-        if(videoSource === "camera"){
-            videoConstraint.facingMode = {ideal: "user"};
+        if (videoSource === "camera") {
+            videoConstraint.facingMode = { ideal: "user" };
         }
         applyPartialInPlace(videoConstraint, config.video.constraints);
         applyPartialInPlace(videoConstraint, overrideConfig?.video?.constraints);
-        try{
-            if(videoSource === "camera"){
+        try {
+            if (videoSource === "camera") {
                 return await navigator.mediaDevices.getUserMedia({
-                    video: videoConstraint, 
+                    video: videoConstraint,
                     audio: config.audio.constraints
                 });
             } else {
                 return await navigator.mediaDevices.getDisplayMedia({
-                    video: videoConstraint, 
+                    video: videoConstraint,
                     audio: config.audio.constraints
                 })
             }
@@ -140,13 +140,20 @@ export const getMediaStream = async(config: IClientConfig, overrideConfig: Recur
             console.error(`[Media] Failed to get user media with resolution ${resolution}`)
         }
     }
-    try{
-        return await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true
-        });
+    try {
+        if (videoSource === "camera") {
+            return await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+        } else {
+            return await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: true
+            })
+        }
     } catch {
-        alert("[Media] No camera detected");
-        throw "[Media] No camera detected";
+        alert(`[Media] No ${videoSource} detected`);
+        throw `[Media] No ${videoSource} detected`;
     }
 }
