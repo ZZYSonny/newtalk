@@ -93,9 +93,7 @@ async function initializeWebRTCStats(
     connection: RTCPeerConnection, config: IClientStatsConfig,
     reportConnection: (report: INetReport) => void
 ) {
-    let lastSent = 0;
-    let lastRecv = 0;
-    let lastLoss = 0;
+    const history = new Map<string, number>();
     await new Promise(r => window.setTimeout(r, config.delay*1000));
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState === "closed") {
@@ -106,29 +104,46 @@ async function initializeWebRTCStats(
             let curSent = 0;
             let curRecv = 0;
             let curLoss = 0;
-            let curSentMaxBandwidth = 0;    
+            let lastSent = 0;
+            let lastRecv = 0;
+            let lastLoss = 0;
+            let curSentMaxBandwidth = 0;        
 
             for (const dict of curStats.values()) {
                 if (dict.type === "candidate-pair" && dict.nominated && dict.state === "succeeded") {
                     console.info(`[Perf] Using ${dict.id}`);
-                    if(dict.bytesReceived) curSent += dict.bytesReceived;
-                    if(dict.bytesSent) curRecv += dict.bytesSent;
-                    if(dict.packetsDiscardedOnSend) curLoss += dict.packetsDiscardedOnSend;
-                    if(dict.availableOutgoingBitrate) curSentMaxBandwidth += dict.availableOutgoingBitrate;
+                    if(dict.bytesReceived) {
+                        lastSent += history.get(dict.id + "bytesReceived") || 0;
+                        curSent += dict.bytesReceived;
+                        history.set(dict.id + "bytesReceived", dict.bytesReceived)
+                    }
+                    if(dict.bytesSent){
+                        lastRecv += history.get(dict.id + "bytesSent") || 0;
+                        curRecv += dict.bytesSent;
+                        history.set(dict.id + "bytesSent", dict.bytesSent)
+                    }
+                    if(dict.packetsDiscardedOnSend){
+                        lastLoss += history.get(dict.id + "packetsDiscardedOnSend") || 0;
+                        curLoss += dict.packetsDiscardedOnSend;
+                        history.set(dict.id + "packetsDiscardedOnSend", dict.packetsDiscardedOnSend)
+                    }
+                    if(dict.availableOutgoingBitrate) {
+                        curSentMaxBandwidth += dict.availableOutgoingBitrate;
+                    }
                 }
             }
             let MbpsRecv = ((curRecv - lastRecv) / 1024 / 1024 * 8) / config.interval;
             let MbpsSent = ((curSent - lastSent) / 1024 / 1024 * 8) / config.interval;
-            let MbpsSentMax = curSentMaxBandwidth / 1024 / 1024 * 8;
+            let MbpsSentMax = curSentMaxBandwidth / 1024 / 1024;
             let PercSentLoss = (curLoss - lastLoss) / (curSent - lastSent);
             let summary: string[] = []
             let formatter = (x: number) => (x>10) ? x.toFixed(0) : x.toFixed(1);
 
             if (MbpsRecv>0 || MbpsSent>0 || MbpsSentMax>0 || PercSentLoss>0) {
-                if(MbpsRecv!==undefined) summary.push(`${formatter(MbpsRecv)}↓`);
-                if(MbpsSent!==undefined) summary.push(`${formatter(MbpsSent)}↑`);
-                if(MbpsSentMax!==undefined) summary.push(`(${formatter(MbpsSentMax)})`);                
-                if(PercSentLoss!==undefined) summary.push(`${formatter(PercSentLoss)}%`);
+                summary.push(`${formatter(MbpsRecv)}↓`);
+                summary.push(`${formatter(MbpsSent)}↑`);
+                summary.push(`(${formatter(MbpsSentMax)})`);                
+                summary.push(`${formatter(PercSentLoss)}%`);
 
                 reportConnection({
                     id: 0,
