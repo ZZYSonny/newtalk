@@ -93,76 +93,55 @@ async function initializeWebRTCStats(
     connection: RTCPeerConnection, config: IClientStatsConfig,
     reportConnection: (report: INetReport) => void
 ) {
-    let curID = 0;
-    let lastStats: RTCStatsReport | undefined;
-    let lastPairID: string | undefined;
+    let lastSent = 0;
+    let lastRecv = 0;
+    let lastLoss = 0;
     await new Promise(r => window.setTimeout(r, config.delay*1000));
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState === "closed") {
             clearInterval(timer);
         } else {
             const curStats = await connection.getStats();
-            let PairInMbps: number | undefined;
-            let PairOutMbps: number | undefined;
-            let PairOutMaxMbps: number | undefined;
-            let PairOutLoss: number | undefined;
-            let summary: string[] = []
 
-            if (lastStats) {
-                if (lastPairID) {
-                    const curDict: RTCIceCandidatePairStats = curStats.get(lastPairID)!;
-                    const lastDict: RTCIceCandidatePairStats = lastStats.get(lastPairID)!;
-                    if (curDict.nominated) {
-                        const recvDiffMs = curDict.lastPacketReceivedTimestamp! - lastDict.lastPacketReceivedTimestamp!;
-                        PairInMbps = (recvDiffMs === 0) ? 0 : (
-                            ((curDict.bytesReceived! - lastDict.bytesReceived!) / 1024 / 1024 * 8) /
-                            (recvDiffMs / 1000)
-                        );
-                        const sendDiffMs = curDict.lastPacketSentTimestamp! - lastDict.lastPacketSentTimestamp!;
-                        PairOutMbps = (sendDiffMs === 0) ? 0 : (
-                            ((curDict.bytesSent! - lastDict.bytesSent!) / 1024 / 1024 * 8) /
-                            (sendDiffMs / 1000)
-                        )
-                        if (curDict.availableOutgoingBitrate) {
-                            PairOutMaxMbps = curDict.availableOutgoingBitrate! / 1024 / 1024
-                        }
-                        PairOutLoss = (curDict as any).packetsDiscardedOnSend / (curDict as any).packetsSent * 100;
-                    } else {
-                        lastPairID = undefined;
-                    }
-                }
-            }
-            if (!lastStats) {
-                for (const dict of curStats.values()) {
-                    if (dict.type === "candidate-pair" && dict.nominated) {
-                        lastPairID = dict.id;
-                    }
-                }
-            }
+            let curSent = 0;
+            let curRecv = 0;
+            let curLoss = 0;
+            let curSentMaxBandwidth = 0;    
+
             for (const dict of curStats.values()) {
-                if (dict.type === "outbound-rtp" && dict.type === "video") {
-                    const curDict = dict as RTCOutboundRtpStreamStats;
-                    PairOutLoss = curDict.retransmittedPacketsSent! / curDict.packetsSent! * 100;
+                if (dict.type === "candidate-pair" && dict.nominated && dict.state === "succeeded") {
+                    console.info(`[Perf] Using ${dict.id}`);
+                    if(dict.bytesReceived) curSent += dict.bytesReceived;
+                    if(dict.bytesSent) curRecv += dict.bytesSent;
+                    if(dict.packetsDiscardedOnSend) curLoss += dict.packetsDiscardedOnSend;
+                    if(dict.availableOutgoingBitrate) curSentMaxBandwidth += dict.availableOutgoingBitrate;
                 }
             }
+            let MbpsRecv = ((curRecv - lastRecv) / 1024 / 1024 * 8) / config.interval;
+            let MbpsSent = ((curSent - lastSent) / 1024 / 1024 * 8) / config.interval;
+            let MbpsSentMax = curSentMaxBandwidth / 1024 / 1024 * 8;
+            let PercSentLoss = (curLoss - lastLoss) / (curSent - lastSent);
+            let summary: string[] = []
+            let formatter = (x: number) => (x>10) ? x.toFixed(0) : x.toFixed(1);
 
-            if (PairInMbps || PairOutMbps || PairOutMaxMbps || PairOutLoss) {
-                if(PairInMbps!==undefined) summary.push(`${PairInMbps.toFixed(1)}↓`);
-                if(PairOutMbps!==undefined) summary.push(`${PairOutMbps.toFixed(1)}↑`);
-                if(PairOutMaxMbps!==undefined) summary.push(`(${PairOutMaxMbps.toFixed(1)})`);                
-                if(PairOutLoss!==undefined) summary.push(`${PairOutLoss.toFixed(0)}%`);
+            if (MbpsRecv>0 || MbpsSent>0 || MbpsSentMax>0 || PercSentLoss>0) {
+                if(MbpsRecv!==undefined) summary.push(`${formatter(MbpsRecv)}↓`);
+                if(MbpsSent!==undefined) summary.push(`${formatter(MbpsSent)}↑`);
+                if(MbpsSentMax!==undefined) summary.push(`(${formatter(MbpsSentMax)})`);                
+                if(PercSentLoss!==undefined) summary.push(`${formatter(PercSentLoss)}%`);
 
                 reportConnection({
-                    id: curID,
-                    inMbps: PairInMbps,
-                    outMbps: PairOutMbps,
-                    outMaxMbps: PairOutMaxMbps,
-                    outLoss: PairOutLoss,
+                    id: 0,
+                    inMbps: MbpsRecv,
+                    outMbps: MbpsSent,
+                    outMaxMbps: MbpsSentMax,
+                    outLoss: PercSentLoss,
                     summary: summary
                 })
             }
-            curID++;
-            lastStats = curStats;
+            lastSent = curSent;
+            lastRecv = curRecv;
+            lastLoss = curLoss;
         }
     }, config.interval * 1000)
 }
