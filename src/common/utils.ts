@@ -1,4 +1,4 @@
-import { IClientConfig, IIdentity, ProfileAudio, ProfileRTC, ProfileVideo } from "./interface";
+import { IClientConfig, IClientVideoConfig, IIdentity, ProfileAudio, ProfileRTC, ProfileVideo, RecursivePartial } from "./interface";
 
 const search = new URLSearchParams(window.location.search);
 
@@ -20,7 +20,7 @@ function getArg<T>(dict: URLSearchParams | Map<string, string>, prefix: string, 
     else return f(p);
 }
 
-function applyPartialInPlace<T extends object>(origin: T, partial: undefined | Partial<T>): T {
+function applyPartialInPlace<T extends object>(origin: T, partial: undefined | Partial<T> | RecursivePartial<T>): T {
     if (partial) {
         for (const k in partial) {
             if (Array.isArray(partial[k])) {
@@ -88,13 +88,11 @@ export const createDefaultConfig = () => {
         video: {
             codecs: ["AV1", "VP9"],
             bitrate: 6,
-            source: "camera",
-            constraints: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                frameRate: { ideal: 30 },
-                facingMode: { ideal: "user" },
-            }
+            resolution: [
+                [1280, 720, 30],
+                [1080, 720, 30]
+            ],
+            constraints: {}
         },
         audio: {
             constraints: {
@@ -110,4 +108,45 @@ export const createDefaultConfig = () => {
     applyPartialInPlace(config.video, ProfileVideo["default"]);
     applyPartialInPlace(config.audio, ProfileAudio["default"]);
     return config;
+}
+
+export const getMediaStream = async(config: IClientConfig, overrideConfig: RecursivePartial<IClientConfig>) => {
+    const videoSource = overrideConfig?.video?.source || config.video.source || "camera";
+    // First try all resolutions
+    for(const resolution of config.video.resolution){
+        const videoConstraint: MediaTrackConstraints = {
+            width: {ideal: resolution[0]},
+            height: {ideal: resolution[1]},
+            frameRate: {ideal: resolution[2]},
+        }
+        if(videoSource === "camera"){
+            videoConstraint.facingMode = {ideal: "user"};
+        }
+        applyPartialInPlace(videoConstraint, config.video.constraints);
+        applyPartialInPlace(videoConstraint, overrideConfig?.video?.constraints);
+        try{
+            if(videoSource === "camera"){
+                return await navigator.mediaDevices.getUserMedia({
+                    video: videoConstraint, 
+                    audio: config.audio.constraints
+                });
+            } else {
+                return await navigator.mediaDevices.getDisplayMedia({
+                    video: videoConstraint, 
+                    audio: config.audio.constraints
+                })
+            }
+        } catch {
+            console.error(`[Media] Failed to get user media with resolution ${resolution}`)
+        }
+    }
+    try{
+        return await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+    } catch {
+        alert("[Media] No camera detected");
+        throw "[Media] No camera detected";
+    }
 }

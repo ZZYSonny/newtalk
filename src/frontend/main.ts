@@ -1,5 +1,5 @@
-import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient } from "../common/webrtc";
-import { createDefaultConfig, idFromURL, updateConfigOverride } from "../common/utils";
+import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, updateStream } from "../common/webrtc";
+import { createDefaultConfig, getMediaStream, idFromURL, updateConfigOverride } from "../common/utils";
 import { IClientConfig } from "../common/interface";
 
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
@@ -14,22 +14,36 @@ export async function createConnection(configFromServer: IClientConfig) {
         "override", configFromServer
     )
     // Get Local Stream
-    let localStream: MediaStream;
-    if (config.video.source == "screen") {
-        localStream = await navigator.mediaDevices.getDisplayMedia({
-            video: config.video.constraints,
-            audio: config.audio.constraints
-        });
-    } else if (config.video.source == "camera") {
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: config.video.constraints,
-            audio: config.audio.constraints
-        });
-    } else {
-        throw "Unknown video source"
-    }
+    let localStream: MediaStream = await getMediaStream(config, {});
     // Set Local Video
     localVideo.srcObject = localStream;
+    localVideo.onclick = async (ev) => {
+        const oldFaceMode = localStream.getVideoTracks()[0].getConstraints().facingMode;
+        const newFaceMode = oldFaceMode == "user" ? "environment" : "user";
+        localStream = await getMediaStream(config, {
+            video: {
+                source: "camera",
+                constraints: {
+                    facingMode: {ideal: newFaceMode}
+                }
+            }
+        });
+        localVideo.srcObject = localStream;
+        updateStream(localStream);
+    };
+    localVideo.oncontextmenu = async (ev) => {
+        ev.preventDefault();
+        localStream = await getMediaStream(config, {
+            video: {
+                source: "screen",
+                constraints: {
+                    facingMode: undefined
+                }
+            }
+        });
+        localVideo.srcObject = localStream;
+        updateStream(localStream);
+    }
     return createConnectionFromStream(
         id, config, localStream,
         (remoteStream) => { remoteVideo.srcObject = remoteStream }

@@ -1,5 +1,9 @@
 import { registerProfile } from "./override"
 
+export type RecursivePartial<T> = {
+    [P in keyof T]?: RecursivePartial<T[P]>;
+};
+
 export interface IClientRTCConfig {
     peer: RTCConfiguration,
     stack: "all" | "v4" | "v6"
@@ -14,7 +18,8 @@ export interface IClientStatsConfig {
 export interface IClientVideoConfig {
     codecs: string[],
     bitrate: number,
-    source: "camera" | "screen",
+    resolution: [number, number, number][],
+    source: "camera" | "screen" | undefined,
     constraints: MediaTrackConstraints,
 }
 
@@ -43,7 +48,7 @@ export interface IIdentity {
     role: "admin" | "client"
 }
 
-export const ProfileRTC: Record<string, Partial<IClientRTCConfig>> = {};
-export const ProfileVideo: Record<string, Partial<IClientVideoConfig>> = {};
-export const ProfileAudio: Record<string, Partial<IClientAudioConfig>> = {};
+export const ProfileRTC: Record<string, RecursivePartial<IClientRTCConfig>> = {};
+export const ProfileVideo: Record<string, RecursivePartial<IClientVideoConfig>> = {};
+export const ProfileAudio: Record<string, RecursivePartial<IClientAudioConfig>> = {};
 registerProfile(ProfileRTC, ProfileVideo, ProfileAudio);

@@ -315,3 +315,9 @@ export function initializeWebRTCClient(
     if (updateProgress) updateProgress("Waiting for Admin...");
     socket.emit("room join", self);
 }
+
+export function updateStream(newStream: MediaStream){
+    const videoSender = connection.getSenders().find(s => s.track?.kind === "video");
+    const newVideoStream = newStream.getVideoTracks()[0];
+    videoSender!.replaceTrack(newVideoStream)
+}
