@@ -112,6 +112,14 @@ export const createDefaultConfig = () => {
 
 export const getMediaStream = async (config: IClientConfig, overrideConfig: RecursivePartial<IClientConfig>) => {
     const videoSource = overrideConfig?.video?.source || config.video.source || "camera";
+    const getMediaDevice = (cfg: MediaStreamConstraints | DisplayMediaStreamOptions) => {
+        console.info(`[Media] Attempting ${videoSource}`, cfg)
+        if (videoSource === "camera") {
+            return navigator.mediaDevices.getUserMedia(cfg);
+        } else {
+            return navigator.mediaDevices.getDisplayMedia(cfg)
+        }
+    }
     // First try all resolutions
     for (const resolution of config.video.resolution) {
         const videoConstraint: MediaTrackConstraints = {
@@ -125,32 +133,22 @@ export const getMediaStream = async (config: IClientConfig, overrideConfig: Recu
         applyPartialInPlace(videoConstraint, config.video.constraints);
         applyPartialInPlace(videoConstraint, overrideConfig?.video?.constraints);
         try {
-            if (videoSource === "camera") {
-                return await navigator.mediaDevices.getUserMedia({
-                    video: videoConstraint,
-                    audio: config.audio.constraints
-                });
-            } else {
-                return await navigator.mediaDevices.getDisplayMedia({
-                    video: videoConstraint,
-                    audio: config.audio.constraints
-                })
-            }
+            return await getMediaDevice({
+                video: videoConstraint, 
+                audio: config.audio.constraints
+            });
         } catch {
             console.error(`[Media] Failed to get user media with resolution ${resolution}`)
         }
     }
     try {
-        if (videoSource === "camera") {
-            return await navigator.mediaDevices.getUserMedia({
+        if (Object.keys(overrideConfig).length > 0) {
+            return await getMediaStream(config, {});
+        } else {
+            return await getMediaDevice({
                 video: true,
                 audio: true
             });
-        } else {
-            return await navigator.mediaDevices.getDisplayMedia({
-                video: true,
-                audio: true
-            })
         }
     } catch {
         alert(`[Media] No ${videoSource} detected`);
