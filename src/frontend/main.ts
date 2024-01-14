@@ -18,6 +18,7 @@ export async function createConnection(configFromServer: IClientConfig) {
     // Set Local Video
     localVideo.srcObject = localStream;
     localVideo.onclick = async (ev) => {
+        localVideo.srcObject = null;
         const oldFaceMode = localStream.getVideoTracks()[0].getConstraints().facingMode;
         const newFaceMode = oldFaceMode == "user" ? "environment" : "user";
         localStream = await getMediaStream(config, {
@@ -33,6 +34,7 @@ export async function createConnection(configFromServer: IClientConfig) {
     };
     localVideo.oncontextmenu = async (ev) => {
         ev.preventDefault();
+        localVideo.srcObject = null;
         localStream = await getMediaStream(config, {
             video: {
                 source: "screen",
