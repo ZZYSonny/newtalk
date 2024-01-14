@@ -102,38 +102,37 @@ async function initializeWebRTCStats(
         } else {
             const curStats = await connection.getStats();
 
-            let curSent = 0;
-            let curRecv = 0;
-            let curLoss = 0;
-            let lastSent = 0;
-            let lastRecv = 0;
-            let lastLoss = 0;
+            let DeltaSent = 0;
+            let DeltaRecv = 0;
+            let DeltaLoss = 0;
             let curSentMaxBandwidth = 0;        
 
-            for (const dict of curStats.values()) {
-                if (dict.type === "candidate-pair" && dict.nominated && dict.state === "succeeded") {
-                    console.info(`[Perf] Using ${dict.id}`);
-                    if(dict.bytesReceived) {
-                        lastRecv += lastStats.get(dict.id)?.bytesReceived || 0;
-                        curRecv += dict.bytesReceived;
+            for (const curDict of curStats.values()) {
+                const lastDict = lastStats.get(curDict.id);
+                if (curDict.type === "candidate-pair" && curDict.nominated && curDict.state === "succeeded") {
+                    console.info(`[Perf] Using Candidate Pair ${curDict.id}`);
+                    if(curDict.availableOutgoingBitrate) {
+                        curSentMaxBandwidth += curDict.availableOutgoingBitrate;
                     }
-                    if(dict.bytesSent){
-                        lastSent += lastStats.get(dict.id)?.bytesSent || 0;
-                        curSent += dict.bytesSent;
+                } else if (curDict.type === "outbound-rtp") {
+                    console.info(`[Perf] Using Outbound RTP ${curDict.id}`);
+                    if(curDict.bytesSent){
+                        DeltaSent += curDict.bytesSent - lastDict?.bytesSent || 0;
                     }
-                    if(dict.packetsDiscardedOnSend){
-                        lastLoss += lastStats.get(dict.id)?.packetsDiscardedOnSend || 0;
-                        curLoss += dict.packetsDiscardedOnSend;
+                    if(curDict.retransmittedBytesSent){
+                        DeltaLoss += curDict.retransmittedBytesSent - lastDict?.retransmittedBytesSent || 0;
                     }
-                    if(dict.availableOutgoingBitrate) {
-                        curSentMaxBandwidth += dict.availableOutgoingBitrate;
+                } else if (curDict.type === "inbound-rtp"){
+                    console.info(`[Perf] Using Inbound RTP ${curDict.id}`);
+                    if(curDict.bytesReceived) {
+                        DeltaRecv += curDict.bytesReceived - lastDict?.bytesReceived || 0;
                     }
                 }
             }
-            let MbpsRecv = ((curRecv - lastRecv) / 1024 / 1024 * 8) / config.interval;
-            let MbpsSent = ((curSent - lastSent) / 1024 / 1024 * 8) / config.interval;
+            let MbpsRecv = ((DeltaRecv) / 1024 / 1024 * 8) / config.interval;
+            let MbpsSent = ((DeltaSent) / 1024 / 1024 * 8) / config.interval;
             let MbpsSentMax = curSentMaxBandwidth / 1024 / 1024;
-            let PercSentLoss = (curLoss - lastLoss) / (curSent - lastSent);
+            let PercSentLoss = (DeltaLoss) / (DeltaSent);
             let summary: string[] = []
             let formatter = (x: number) => (x>10) ? x.toFixed(0) : x.toFixed(1);
 
