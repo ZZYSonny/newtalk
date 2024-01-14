@@ -93,8 +93,9 @@ async function initializeWebRTCStats(
     connection: RTCPeerConnection, config: IClientStatsConfig,
     reportConnection: (report: INetReport) => void
 ) {
-    const history = new Map<string, number>();
     await new Promise(r => window.setTimeout(r, config.delay*1000));
+    let curID = 0;
+    let lastStats = await connection.getStats();
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState === "closed") {
             clearInterval(timer);
@@ -113,19 +114,16 @@ async function initializeWebRTCStats(
                 if (dict.type === "candidate-pair" && dict.nominated && dict.state === "succeeded") {
                     console.info(`[Perf] Using ${dict.id}`);
                     if(dict.bytesReceived) {
-                        lastSent += history.get(dict.id + "bytesReceived") || 0;
-                        curSent += dict.bytesReceived;
-                        history.set(dict.id + "bytesReceived", dict.bytesReceived)
+                        lastRecv += lastStats.get(dict.id)?.bytesReceived || 0;
+                        curRecv += dict.bytesReceived;
                     }
                     if(dict.bytesSent){
-                        lastRecv += history.get(dict.id + "bytesSent") || 0;
-                        curRecv += dict.bytesSent;
-                        history.set(dict.id + "bytesSent", dict.bytesSent)
+                        lastSent += lastStats.get(dict.id)?.bytesSent || 0;
+                        curSent += dict.bytesSent;
                     }
                     if(dict.packetsDiscardedOnSend){
-                        lastLoss += history.get(dict.id + "packetsDiscardedOnSend") || 0;
+                        lastLoss += lastStats.get(dict.id)?.packetsDiscardedOnSend || 0;
                         curLoss += dict.packetsDiscardedOnSend;
-                        history.set(dict.id + "packetsDiscardedOnSend", dict.packetsDiscardedOnSend)
                     }
                     if(dict.availableOutgoingBitrate) {
                         curSentMaxBandwidth += dict.availableOutgoingBitrate;
@@ -146,17 +144,16 @@ async function initializeWebRTCStats(
                 summary.push(`${formatter(PercSentLoss)}%`);
 
                 reportConnection({
-                    id: 0,
+                    id: curID,
                     inMbps: MbpsRecv,
                     outMbps: MbpsSent,
                     outMaxMbps: MbpsSentMax,
                     outLoss: PercSentLoss,
                     summary: summary
                 })
+                curID += 1;
             }
-            lastSent = curSent;
-            lastRecv = curRecv;
-            lastLoss = curLoss;
+            lastStats = curStats;
         }
     }, config.interval * 1000)
 }
