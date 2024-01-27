@@ -314,6 +314,7 @@ export function initializeWebRTCClient(
 
 export function updateStream(newStream: MediaStream){
     const videoSender = connection.getSenders().find(s => s.track?.kind === "video");
-    const newVideoStream = newStream.getVideoTracks()[0];
-    videoSender!.replaceTrack(newVideoStream)
+    const audioSender = connection.getSenders().find(s => s.track?.kind === "audio");
+    videoSender!.replaceTrack(newStream.getVideoTracks()[0]);
+    audioSender!.replaceTrack(newStream.getAudioTracks()[0]);
 }

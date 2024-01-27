@@ -21,11 +21,12 @@ export async function createConnection(configFromServer: IClientConfig) {
         localVideo.srcObject = null;
         const oldFaceMode = localStream.getVideoTracks()[0].getConstraints().facingMode;
         const newFaceMode = oldFaceMode == "user" ? "environment" : "user";
+        localStream.getTracks().forEach((x) => x.stop())
         localStream = await getMediaStream(config, {
             video: {
                 source: "camera",
                 constraints: {
-                    facingMode: {ideal: newFaceMode}
+                    facingMode: { ideal: newFaceMode }
                 }
             }
         });
