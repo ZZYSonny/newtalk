@@ -21,7 +21,7 @@ function getArg<T>(dict: URLSearchParams | Map<string, string>, prefix: string, 
 }
 
 function applyPartialInPlace<T extends object>(origin: T, partial: undefined | Partial<T> | RecursivePartial<T>): T {
-    if (partial) {
+    if (partial instanceof Object) {
         for (const k in partial) {
             if (Array.isArray(partial[k])) {
                 origin[k] = partial[k] as any;
@@ -59,10 +59,7 @@ export function updateConfigOverride(prefix: string, config: IClientConfig, dict
     applyPartialInPlace(config.video, {
         bitrate: getArg(dict, prefix, "video.bitrate",
             (s: string) => parseInt(s)
-        ),
-        source: getArg(dict, prefix, "video.source",
-            (s: string) => s as ("screen" | "camera")
-        ),
+        )
     });
     applyPartialInPlace(config.audio, {});
     return config;
@@ -88,10 +85,11 @@ export const createDefaultConfig = () => {
         video: {
             codecs: ["AV1", "VP9"],
             bitrate: 6,
-            resolution: [
-                [1080, 720, 30]
-            ],
-            constraints: {}
+            constraints: {
+                width: { ideal: 1080 },
+                height: { ideal: 720 },
+                frameRate: { ideal: 30 }
+            }
         },
         audio: {
             constraints: {
@@ -109,48 +107,26 @@ export const createDefaultConfig = () => {
     return config;
 }
 
-export const getMediaStream = async (config: IClientConfig, overrideConfig: RecursivePartial<IClientConfig>) => {
-    const videoSource = overrideConfig?.video?.source || config.video.source || "camera";
+export async function getMediaStream(config: IClientConfig, videoSource: "camera" | "screen", audioSource: "mic" | null): Promise<MediaStream> {
     const getMediaDevice = (cfg: MediaStreamConstraints | DisplayMediaStreamOptions) => {
-        console.info(`[Media] Attempting ${videoSource}`, cfg)
-        if (videoSource === "camera") {
-            return navigator.mediaDevices.getUserMedia(cfg);
-        } else {
-            return navigator.mediaDevices.getDisplayMedia(cfg)
-        }
-    }
-    // First try all resolutions
-    for (const resolution of config.video.resolution) {
-        const videoConstraint: MediaTrackConstraints = {
-            width: { ideal: resolution[0] },
-            height: { ideal: resolution[1] },
-            frameRate: { ideal: resolution[2] },
-        }
-        if (videoSource === "camera") {
-            videoConstraint.facingMode = { ideal: "user" };
-        }
-        applyPartialInPlace(videoConstraint, config.video.constraints);
-        applyPartialInPlace(videoConstraint, overrideConfig?.video?.constraints);
-        try {
-            return await getMediaDevice({
-                video: videoConstraint, 
-                audio: config.audio.constraints
-            });
-        } catch {
-            console.error(`[Media] Failed to get user media with resolution ${resolution}`)
-        }
+        console.info(`[Media] Attempting Media Device`, cfg)
+        if (videoSource === "screen") return navigator.mediaDevices.getDisplayMedia(cfg)
+        else return navigator.mediaDevices.getUserMedia(cfg);
     }
     try {
-        if (Object.keys(overrideConfig).length > 0) {
-            return await getMediaStream(config, {});
-        } else {
+        return await getMediaDevice({
+            video: config.video.constraints,
+            audio: audioSource ? config.audio.constraints : false
+        });
+    } catch {
+        alert("Using fallback media settings");
+        try {
             return await getMediaDevice({
                 video: true,
-                audio: true
+                audio: false
             });
+        } catch {
+            throw `Failed to get any user media`;
         }
-    } catch {
-        alert(`[Media] No ${videoSource} detected`);
-        throw `[Media] No ${videoSource} detected`;
     }
 }

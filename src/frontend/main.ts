@@ -1,6 +1,6 @@
-import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, updateCameraStream, updateDisplayStream } from "../common/webrtc";
+import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, updateVideoTrack } from "../common/webrtc";
 import { createDefaultConfig, getMediaStream, idFromURL, updateConfigOverride } from "../common/utils";
-import { IClientConfig } from "../common/interface";
+import { IClientConfig, RecursivePartial } from "../common/interface";
 
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;
@@ -14,43 +14,37 @@ export async function createConnection(configFromServer: IClientConfig) {
         "override", configFromServer
     )
     // Get Local Stream
-    let localStream: MediaStream = await getMediaStream(config, {});
+    let videoDevice: "camera" | "screen" = "camera";
+    let videoCameraFace: "user" | "environment" = "user";
+    let localStream: MediaStream = await getMediaStream(config, videoDevice, "mic");
     let remoteStream = new MediaStream();
     // Set Local Video
     localVideo.srcObject = localStream;
     remoteVideo.srcObject = remoteStream;
-    // Tap to replace camera
-    localVideo.onclick = async (ev) => {
+    // Change camera function
+    const changeCamera = async () => {
         localVideo.srcObject = null;
-        const oldFaceMode = localStream.getVideoTracks()[0].getConstraints().facingMode;
-        const newFaceMode = oldFaceMode == "user" ? "environment" : "user";
-        localStream.getTracks().forEach((x) => x.stop());
-        localStream = await getMediaStream(config, {
-            video: {
-                source: "camera",
-                constraints: {
-                    facingMode: { ideal: newFaceMode }
-                }
-            }
-        });
+        localStream.getVideoTracks().forEach((track) => {
+            track.stop();
+            localStream.removeTrack(track);
+        })
+        const newStream = await getMediaStream(config, videoDevice, null);
+        const newTrack = newStream.getVideoTracks()[0];
+        localStream.addTrack(newTrack);
+        updateVideoTrack(newTrack);
         localVideo.srcObject = localStream;
-        updateCameraStream(localStream);
+    }
+    localVideo.onclick = async (ev) => {
+        videoDevice = "camera";
+        if (videoCameraFace == "user") videoCameraFace = "environment";
+        else videoCameraFace = "user";
+        config.video.constraints.facingMode = { ideal: videoCameraFace };
+        await changeCamera();
     };
-    // Long tap to share screen.
     localVideo.oncontextmenu = async (ev) => {
         ev.preventDefault();
-        localVideo.srcObject = null;
-        localStream.getVideoTracks().forEach((x) => x.stop());
-        localStream = await getMediaStream(config, {
-            video: {
-                source: "screen",
-                constraints: {
-                    facingMode: undefined
-                }
-            }
-        });
-        localVideo.srcObject = localStream;
-        updateDisplayStream(localStream);
+        videoDevice = "screen";
+        await changeCamera();
     }
     return createConnectionFromStream(
         id, config, localStream, remoteStream

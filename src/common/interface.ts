@@ -18,8 +18,6 @@ export interface IClientStatsConfig {
 export interface IClientVideoConfig {
     codecs: string[],
     bitrate: number,
-    resolution: [number, number, number][],
-    source: "camera" | "screen" | undefined,
     constraints: MediaTrackConstraints,
 }
 

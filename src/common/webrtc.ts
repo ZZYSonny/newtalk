@@ -309,20 +309,7 @@ export function initializeWebRTCClient(
     socket.emit("room join", self);
 }
 
-export function updateCameraStream(newStream: MediaStream) {
+export function updateVideoTrack(newTrack: MediaStreamTrack) {
     const videoSender = connection.getSenders().find(s => s.track?.kind === "video");
-    videoSender!.replaceTrack(newStream.getVideoTracks()[0]);
-    const audioSender = connection.getSenders().find(s => s.track?.kind === "audio");
-    audioSender!.replaceTrack(newStream.getAudioTracks()[0]);
-}
-
-export function updateDisplayStream(newStream: MediaStream) {
-    const videoSender = connection.getSenders().find(s => s.track?.kind === "video");
-    videoSender!.replaceTrack(newStream.getVideoTracks()[0]);
-    if (newStream.getAudioTracks().length > 0) {
-        // Close existing audio track.
-        connection.getSenders().filter(s => s.track?.kind === "audio").map(s => s.track?.stop());
-        const audioSender = connection.getSenders().find(s => s.track?.kind === "audio");
-        audioSender!.replaceTrack(newStream.getAudioTracks()[0]);
-    }
+    videoSender!.replaceTrack(newTrack);
 }
