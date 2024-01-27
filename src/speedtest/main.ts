@@ -23,7 +23,7 @@ function perfLogSummary(side: string, r: INetReport) {
 }
 
 async function perfLocalReport(r: INetReport) {
-    perfLogSummary("LOCAL ", r);
+    perfLogSummary(" LOCAL", r);
     socket.emit("webrtc debug", id, r)
 }
 
@@ -38,17 +38,13 @@ async function createConnection(config: IClientConfig) {
     }
     // Get Local Stream
     let localStream: MediaStream = (localVideo as any).captureStream();
+    // Set Remote Video
+    const remoteStream = new MediaStream();
+    remoteVideo.srcObject = remoteStream;
     // Set Local Video
     return createConnectionFromStream(
-        id, config, localStream,
-        async (remoteStream) => {
-            remoteVideo.srcObject = remoteStream
-            while (localVideo.paused) {
-                localVideo.play();
-                await new Promise(resolve => setTimeout(resolve, 100));
-            }        
-        }
-    )
+        id, config, localStream, remoteStream
+    );
 }
 
 async function initCall() {
