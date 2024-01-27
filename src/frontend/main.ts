@@ -1,4 +1,4 @@
-import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, updateStream } from "../common/webrtc";
+import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, updateCameraStream, updateDisplayStream } from "../common/webrtc";
 import { createDefaultConfig, getMediaStream, idFromURL, updateConfigOverride } from "../common/utils";
 import { IClientConfig } from "../common/interface";
 
@@ -31,7 +31,7 @@ export async function createConnection(configFromServer: IClientConfig) {
             }
         });
         localVideo.srcObject = localStream;
-        updateStream(localStream);
+        updateCameraStream(localStream);
     };
     localVideo.oncontextmenu = async (ev) => {
         ev.preventDefault();
@@ -45,7 +45,7 @@ export async function createConnection(configFromServer: IClientConfig) {
             }
         });
         localVideo.srcObject = localStream;
-        updateStream(localStream);
+        updateDisplayStream(localStream);
     }
     return createConnectionFromStream(
         id, config, localStream,
