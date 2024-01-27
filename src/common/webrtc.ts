@@ -54,9 +54,8 @@ function cbInitialIceCandidate(connection: RTCPeerConnection, self: IIdentity, c
 }
 
 export function createConnectionFromStream(
-    self: IIdentity, config: IClientConfig, localStream: MediaStream,
-    useRemoteStream: (stream: MediaStream) => void
-){
+    self: IIdentity, config: IClientConfig, localStream: MediaStream, remoteStream: MediaStream
+) {
     console.log(`[Video][0][${self.role}] Using config`, config, config)
     const pc = new RTCPeerConnection(config.rtc.peer);
 
@@ -68,10 +67,8 @@ export function createConnectionFromStream(
 
     // Receive Video
     pc.ontrack = (ev) => {
-        console.log(`[Video][2][${self.role}] Receiving RTC Track Type ${ev.track.kind}`)
-        if (ev.track.kind == "video") {
-            useRemoteStream(ev.streams[0]);
-        }
+        console.log(`[Video][2][${self.role}] Receiving RTC Track`)
+        remoteStream.addTrack(ev.track);
     }
 
     // Set Preferred video codec
@@ -93,7 +90,7 @@ async function initializeWebRTCStats(
     connection: RTCPeerConnection, config: IClientStatsConfig,
     reportConnection: (report: INetReport) => void
 ) {
-    await new Promise(r => window.setTimeout(r, config.delay*1000));
+    await new Promise(r => window.setTimeout(r, config.delay * 1000));
     let curID = 0;
     let lastStats = await connection.getStats();
     const timer = window.setInterval(async () => {
@@ -105,26 +102,26 @@ async function initializeWebRTCStats(
             let DeltaSent = 0;
             let DeltaRecv = 0;
             let DeltaLoss = 0;
-            let curSentMaxBandwidth = 0;        
+            let curSentMaxBandwidth = 0;
 
             for (const curDict of curStats.values()) {
                 const lastDict = lastStats.get(curDict.id);
                 if (curDict.type === "candidate-pair" && curDict.nominated && curDict.state === "succeeded") {
-                    console.info(`[Perf] Using Candidate Pair ${curDict.id}`);
-                    if(curDict.availableOutgoingBitrate) {
+                    //console.info(`[Perf] Using Candidate Pair ${curDict.id}`);
+                    if (curDict.availableOutgoingBitrate) {
                         curSentMaxBandwidth += curDict.availableOutgoingBitrate;
                     }
                 } else if (curDict.type === "outbound-rtp") {
-                    console.info(`[Perf] Using Outbound RTP ${curDict.id}`);
-                    if(curDict.bytesSent){
+                    //console.info(`[Perf] Using Outbound RTP ${curDict.id}`);
+                    if (curDict.bytesSent) {
                         DeltaSent += curDict.bytesSent - lastDict?.bytesSent || 0;
                     }
-                    if(curDict.retransmittedBytesSent){
+                    if (curDict.retransmittedBytesSent) {
                         DeltaLoss += curDict.retransmittedBytesSent - lastDict?.retransmittedBytesSent || 0;
                     }
-                } else if (curDict.type === "inbound-rtp"){
-                    console.info(`[Perf] Using Inbound RTP ${curDict.id}`);
-                    if(curDict.bytesReceived) {
+                } else if (curDict.type === "inbound-rtp") {
+                    //console.info(`[Perf] Using Inbound RTP ${curDict.id}`);
+                    if (curDict.bytesReceived) {
                         DeltaRecv += curDict.bytesReceived - lastDict?.bytesReceived || 0;
                     }
                 }
@@ -134,12 +131,12 @@ async function initializeWebRTCStats(
             let MbpsSentMax = curSentMaxBandwidth / 1024 / 1024;
             let PercSentLoss = (DeltaLoss) / (DeltaSent);
             let summary: string[] = []
-            let formatter = (x: number) => (x>10) ? x.toFixed(0) : x.toFixed(1);
+            let formatter = (x: number) => (x > 10) ? x.toFixed(0) : x.toFixed(1);
 
-            if (MbpsRecv>0 || MbpsSent>0 || MbpsSentMax>0 || PercSentLoss>0) {
+            if (MbpsRecv > 0 || MbpsSent > 0 || MbpsSentMax > 0 || PercSentLoss > 0) {
                 summary.push(`${formatter(MbpsRecv)}↓`);
                 summary.push(`${formatter(MbpsSent)}↑`);
-                summary.push(`(${formatter(MbpsSentMax)})`);                
+                summary.push(`(${formatter(MbpsSentMax)})`);
                 summary.push(`${formatter(PercSentLoss)}%`);
 
                 reportConnection({
@@ -312,17 +309,19 @@ export function initializeWebRTCClient(
     socket.emit("room join", self);
 }
 
-export function updateCameraStream(newStream: MediaStream){
+export function updateCameraStream(newStream: MediaStream) {
     const videoSender = connection.getSenders().find(s => s.track?.kind === "video");
-    const audioSender = connection.getSenders().find(s => s.track?.kind === "audio");
     videoSender!.replaceTrack(newStream.getVideoTracks()[0]);
+    const audioSender = connection.getSenders().find(s => s.track?.kind === "audio");
     audioSender!.replaceTrack(newStream.getAudioTracks()[0]);
 }
 
-export function updateDisplayStream(newStream: MediaStream){
+export function updateDisplayStream(newStream: MediaStream) {
     const videoSender = connection.getSenders().find(s => s.track?.kind === "video");
     videoSender!.replaceTrack(newStream.getVideoTracks()[0]);
-    if(newStream.getAudioTracks().length > 0){
+    if (newStream.getAudioTracks().length > 0) {
+        // Close existing audio track.
+        connection.getSenders().filter(s => s.track?.kind === "audio").map(s => s.track?.stop());
         const audioSender = connection.getSenders().find(s => s.track?.kind === "audio");
         audioSender!.replaceTrack(newStream.getAudioTracks()[0]);
     }

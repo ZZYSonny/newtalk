@@ -15,13 +15,16 @@ export async function createConnection(configFromServer: IClientConfig) {
     )
     // Get Local Stream
     let localStream: MediaStream = await getMediaStream(config, {});
+    let remoteStream = new MediaStream();
     // Set Local Video
     localVideo.srcObject = localStream;
+    remoteVideo.srcObject = remoteStream;
+    // Tap to replace camera
     localVideo.onclick = async (ev) => {
         localVideo.srcObject = null;
         const oldFaceMode = localStream.getVideoTracks()[0].getConstraints().facingMode;
         const newFaceMode = oldFaceMode == "user" ? "environment" : "user";
-        localStream.getTracks().forEach((x) => x.stop())
+        localStream.getTracks().forEach((x) => x.stop());
         localStream = await getMediaStream(config, {
             video: {
                 source: "camera",
@@ -33,9 +36,11 @@ export async function createConnection(configFromServer: IClientConfig) {
         localVideo.srcObject = localStream;
         updateCameraStream(localStream);
     };
+    // Long tap to share screen.
     localVideo.oncontextmenu = async (ev) => {
         ev.preventDefault();
         localVideo.srcObject = null;
+        localStream.getVideoTracks().forEach((x) => x.stop());
         localStream = await getMediaStream(config, {
             video: {
                 source: "screen",
@@ -48,8 +53,7 @@ export async function createConnection(configFromServer: IClientConfig) {
         updateDisplayStream(localStream);
     }
     return createConnectionFromStream(
-        id, config, localStream,
-        (remoteStream) => { remoteVideo.srcObject = remoteStream }
+        id, config, localStream, remoteStream
     )
 }
 
