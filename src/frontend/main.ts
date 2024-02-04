@@ -11,6 +11,23 @@ const id = idFromURL();
 let localStream: MediaStream;
 let remoteStream: MediaStream;
 
+function streamStop(stream: MediaStream | undefined, video: boolean, audio: boolean) {
+    if (stream) {
+        if (video) {
+            stream.getVideoTracks().forEach(track => {
+                track.stop();
+                stream.removeTrack(track);
+            })
+        }
+        if (audio) {
+            stream.getAudioTracks().forEach(track => {
+                track.stop();
+                stream.removeTrack(track);
+            })
+        }
+    }
+}
+
 export async function createConnection(configFromServer: IClientConfig) {
     // Get override config
     const config = updateConfigOverride(
@@ -34,10 +51,7 @@ export async function createConnection(configFromServer: IClientConfig) {
     let curID = 0;
     for (curID = 0; curID < cameras.length; curID++) {
         // Close previous localStream
-        localStream?.getTracks().forEach((track) => {
-            track.stop();
-            localStream.removeTrack(track);
-        })
+        streamStop(localStream, true, true);
         // Set Device ID
         console.info(`[DEV] Using camera`, cameras[curID]);
         config.video.constraints.deviceId = { ideal: devices[curID].deviceId };
@@ -62,10 +76,7 @@ export async function createConnection(configFromServer: IClientConfig) {
     // Change Camera
     localVideo.onclick = async (ev) => {
         // Close previous video stream
-        localStream.getVideoTracks().forEach((track) => {
-            track.stop();
-            localStream.removeTrack(track);
-        })
+        streamStop(localStream, true, false);
         // Increment ID and Set Device ID
         curID = (curID + 1) % cameras.length;
         console.info(`[DEV] Using camera`, cameras[curID]);
@@ -95,10 +106,7 @@ export async function createConnection(configFromServer: IClientConfig) {
             // Success
             curID = -1;
             console.info(`[DEV] Switching to screen`);
-            localStream.getVideoTracks().forEach((track) => {
-                track.stop();
-                localStream.removeTrack(track);
-            })
+            streamStop(localStream, true, false);
             updateTrack(localStream, stream.getVideoTracks()[0]);
         }
     }
