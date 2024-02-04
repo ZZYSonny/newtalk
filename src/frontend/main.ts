@@ -1,4 +1,4 @@
-import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, updateVideoTrack } from "../common/webrtc";
+import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, updateTrack, updateVideoTrack } from "../common/webrtc";
 import { createDefaultConfig, getMediaStream, idFromURL, updateConfigOverride } from "../common/utils";
 import { IClientConfig, RecursivePartial } from "../common/interface";
 
@@ -8,43 +8,93 @@ const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
 const reportCaption = document.getElementById("reportCaption") as HTMLSpanElement;
 
 const id = idFromURL();
+let localStream: MediaStream;
+let remoteStream: MediaStream;
 
 export async function createConnection(configFromServer: IClientConfig) {
+    // Get override config
     const config = updateConfigOverride(
         "override", configFromServer
     )
-    // Get Local Stream
-    let videoDevice: "camera" | "screen" = "camera";
-    let videoCameraFace: "user" | "environment" = "user";
-    let localStream: MediaStream = await getMediaStream(config, videoDevice, "mic");
-    let remoteStream = new MediaStream();
-    // Set Local Video
+    // Device Memo
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter(dev => dev.kind === 'videoinput').sort((dev1, dev2) => {
+        for (const key of ["front", "back", "rear"]) {
+            const flag1 = dev1.label.toLowerCase().includes(key);
+            const flag2 = dev2.label.toLowerCase().includes(key);
+            if (flag1 !== flag2) {
+                if (flag1 && !flag2) return -1;
+                if (!flag1 && flag2) return 1;
+            }
+        }
+        return dev1.label.localeCompare(dev2.label);
+    });
+    console.info(`[DEV] Found camera`, cameras);
+    // Set initial localStream
+    let curID = 0;
+    for (curID = 0; curID < cameras.length; curID++) {
+        // Close previous localStream
+        localStream?.getTracks().forEach((track) => {
+            track.stop();
+            localStream.removeTrack(track);
+        })
+        // Set device id
+        config.video.constraints.deviceId = { ideal: cameras[curID].deviceId };
+        localStream = await navigator.mediaDevices.getUserMedia({
+            video: config.video.constraints,
+            audio: config.audio.constraints
+        });
+        // Check camera and audio are both available
+        if (localStream.getAudioTracks().length > 0 && localStream.getVideoTracks().length > 0) {
+            console.info(`[DEV] Using camera`, cameras[curID]);
+            break;
+        }
+    }
+    remoteStream = new MediaStream();
     localVideo.srcObject = localStream;
     remoteVideo.srcObject = remoteStream;
-    // Change camera function
-    const changeCamera = async () => {
-        localVideo.srcObject = null;
+    // Change Camera
+    localVideo.onclick = async (ev) => {
+        // Close previous video stream
         localStream.getVideoTracks().forEach((track) => {
             track.stop();
             localStream.removeTrack(track);
         })
-        const newStream = await getMediaStream(config, videoDevice, null);
-        const newTrack = newStream.getVideoTracks()[0];
-        localStream.addTrack(newTrack);
-        updateVideoTrack(newTrack);
-        localVideo.srcObject = localStream;
-    }
-    localVideo.onclick = async (ev) => {
-        videoDevice = "camera";
-        if (videoCameraFace == "user") videoCameraFace = "environment";
-        else videoCameraFace = "user";
-        config.video.constraints.facingMode = { ideal: videoCameraFace };
-        await changeCamera();
+        // Increment ID and get video
+        curID = (curID + 1) % cameras.length;
+        config.video.constraints.deviceId = { ideal: devices[curID].deviceId };
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: config.video.constraints,
+            audio: false
+        });
+        if (stream && stream.getVideoTracks().length > 0) {
+            // Success
+            console.info(`[DEV] Using camera`, cameras[curID]);
+            updateTrack(localStream, stream.getVideoTracks()[0]);
+        } else {
+            // Fail
+            alert(`Failed to use camera ${cameras[curID].label}`);
+        }
     };
     localVideo.oncontextmenu = async (ev) => {
         ev.preventDefault();
-        videoDevice = "screen";
-        await changeCamera();
+        // Get display stream before closing existing stream.
+        // Because it is more likely to fail.
+        config.video.constraints.deviceId = undefined;
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: config.video.constraints,
+            audio: false
+        })
+        if (stream && stream.getVideoTracks().length > 0) {
+            // Success
+            curID = -1;
+            console.info(`[DEV] Switching to screen`);
+            localStream.getVideoTracks().forEach((track) => {
+                track.stop();
+                localStream.removeTrack(track);
+            })
+            updateTrack(localStream, stream.getVideoTracks()[0]);
+        }
     }
     return createConnectionFromStream(
         id, config, localStream, remoteStream

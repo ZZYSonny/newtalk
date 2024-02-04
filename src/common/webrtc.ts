@@ -309,7 +309,10 @@ export function initializeWebRTCClient(
     socket.emit("room join", self);
 }
 
-export function updateVideoTrack(newTrack: MediaStreamTrack) {
-    const videoSender = connection.getSenders().find(s => s.track?.kind === "video");
-    videoSender!.replaceTrack(newTrack);
+export function updateTrack(localStream: MediaStream, newTrack: MediaStreamTrack) {
+    localStream.addTrack(newTrack);
+    const sender = connection.getSenders().find(
+        s => s.track?.kind === newTrack.kind
+    );
+    sender!.replaceTrack(newTrack);
 }
