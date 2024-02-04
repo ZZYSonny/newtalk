@@ -38,16 +38,22 @@ export async function createConnection(configFromServer: IClientConfig) {
             track.stop();
             localStream.removeTrack(track);
         })
-        // Set device id
-        config.video.constraints.deviceId = { ideal: cameras[curID].deviceId };
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: config.video.constraints,
-            audio: config.audio.constraints
-        });
-        // Check camera and audio are both available
-        if (localStream.getAudioTracks().length > 0 && localStream.getVideoTracks().length > 0) {
-            console.info(`[DEV] Using camera`, cameras[curID]);
+        // Set Device ID
+        console.info(`[DEV] Using camera`, cameras[curID]);
+        config.video.constraints.deviceId = { ideal: devices[curID].deviceId };
+        try {
+            // Get Stream
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: config.video.constraints,
+                audio: config.audio.constraints
+            });
+            // Check camera and audio are both available
+            if (localStream.getVideoTracks().length == 0) throw "Missing Video";
+            if (localStream.getAudioTracks().length == 0) throw "Missing Audio";
+            // Success
             break;
+        } catch (error) {
+            alert(`Failed to use device: ${cameras[curID].label}\nError: ${error}`);
         }
     }
     remoteStream = new MediaStream();
@@ -60,20 +66,20 @@ export async function createConnection(configFromServer: IClientConfig) {
             track.stop();
             localStream.removeTrack(track);
         })
-        // Increment ID and get video
+        // Increment ID and Set Device ID
         curID = (curID + 1) % cameras.length;
+        console.info(`[DEV] Using camera`, cameras[curID]);
         config.video.constraints.deviceId = { ideal: devices[curID].deviceId };
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: config.video.constraints,
-            audio: false
-        });
-        if (stream && stream.getVideoTracks().length > 0) {
-            // Success
-            console.info(`[DEV] Using camera`, cameras[curID]);
+        try {
+            // Get Stream
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: config.video.constraints,
+                audio: false
+            });
+            // Update Track
             updateTrack(localStream, stream.getVideoTracks()[0]);
-        } else {
-            // Fail
-            alert(`Failed to use camera ${cameras[curID].label}`);
+        } catch (error) {
+            alert(`Failed to use device: ${cameras[curID].label}\nError: ${error}`);
         }
     };
     localVideo.oncontextmenu = async (ev) => {
