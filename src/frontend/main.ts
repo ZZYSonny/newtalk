@@ -1,4 +1,4 @@
-import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, socket, updateTrack } from "../common/webrtc";
+import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, socket, replaceRTCTrack } from "../common/webrtc";
 import { createDefaultConfig, getMediaStream, idFromURL, updateConfigOverride } from "../common/utils";
 import { IClientConfig, RecursivePartial } from "../common/interface";
 
@@ -16,9 +16,9 @@ function popup(message: string, time: number) {
     if (popInterval) clearInterval(popInterval);
     popupMessage.hidden = false;
     popupMessage.innerText = message;
-    if(time>0){
-        popInterval = setTimeout(() => { popupMessage.hidden = true }, time);
-    }   
+    if (time > 0) {
+        popInterval = setTimeout(() => { popupMessage.hidden = true }, time) as any;
+    }
 }
 
 export async function createConnection(configFromServer: IClientConfig) {
@@ -29,14 +29,6 @@ export async function createConnection(configFromServer: IClientConfig) {
     // Device Memo
     const devices = await navigator.mediaDevices.enumerateDevices();
     const cameras = devices.filter(dev => dev.kind === 'videoinput').sort((dev1, dev2) => {
-        for (const key of ["front", "back"]) {
-            const flag1 = dev1.label.toLowerCase().includes(key);
-            const flag2 = dev2.label.toLowerCase().includes(key);
-            if (flag1 !== flag2) {
-                if (flag1 && !flag2) return -1;
-                if (!flag1 && flag2) return 1;
-            }
-        }
         return dev1.label.localeCompare(dev2.label);
     });
     console.info(`[DEV] Found camera`, cameras);
@@ -58,67 +50,50 @@ export async function createConnection(configFromServer: IClientConfig) {
         }
     }
 
-    async function streamStart(id: number, audio: boolean) {
-        let stream: MediaStream;
+    let sourceID: number = 0;
+    let deviceID: number = -1;
+    const sourceIDtoConstraint = ["user", "environment", undefined];
+    const sourceIDtoLabel = ["front", "back", ""];
 
-        if (id >= 0) {
-            popup(`Using ${cameras[curID].label}`, 3000);
-            config.video.constraints.deviceId = devices[curID].deviceId
-            if (cameras[curID].label.includes("front")) config.video.constraints.facingMode = "user";
-            else if (cameras[curID].label.includes("back")) config.video.constraints.facingMode = "environment";
-            else config.video.constraints.facingMode = undefined;
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: config.video.constraints,
-                audio: config.audio.constraints
-            });
+    async function cameraStart(audio: boolean) {
+        streamStop(localStream, true, audio);
+        config.video.constraints.facingMode = sourceIDtoConstraint[sourceID];
+        if (deviceID >= 0) {
+            const filtered = cameras.filter(dev => dev.label.includes(sourceIDtoLabel[sourceID]));
+            if (filtered.length === 0) {
+                popup(`No matching camera, facing ${sourceIDtoLabel[sourceID]}`, 3000);
+                throw "No matching camera";
+            }
+            const cam = filtered[deviceID % filtered.length];
+            config.video.constraints.deviceId = cam.deviceId;
+            popup(`Using ${cam.label}`, 3000);
         } else {
-            popup(`Using Screen Capture`, 3000);
             config.video.constraints.deviceId = undefined;
-            config.video.constraints.facingMode = undefined;
-            stream = await navigator.mediaDevices.getDisplayMedia({
-                video: config.video.constraints,
-                audio: false
-            })
+            popup(`Using camera facing ${sourceIDtoLabel[sourceID]}`, 3000);
         }
-        if (stream.getVideoTracks().length == 0) throw "Missing Video";
-        if (audio && stream.getVideoTracks().length == 0) throw "Missing Audio";
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: config.video.constraints,
+            audio: config.audio.constraints
+        });
         return stream;
     }
 
-    let curID = -1;
-    async function cameraStart(audio: boolean) {
-        for (let i = 0; i < cameras.length; i++) {
-            curID = (curID + 1) % cameras.length;
-            try {
-                // Get Stream
-                streamStop(localStream, true, audio);
-                localStream = await streamStart(curID, audio);
-                // Success
-                return localStream;
-            } catch (error) {
-                alert(`Failed to use device: ${cameras[curID].label}\nError: ${error}`);
-            }
-        }
-        alert(`No Camera Found`);
-        throw `No Camera Found`
+    async function screenStart(audio: boolean) {
+        config.video.constraints.facingMode = undefined;
+        config.video.constraints.deviceId = undefined;
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: config.video.constraints,
+            audio: false
+        })
+        if (stream.getVideoTracks().length === 0) throw "Missing Video";
+        popup(`Using screen capture`, 3000);
+        streamStop(localStream, true, audio);
+        return stream;
     }
 
-    // Change Camera
-    localVideo.onclick = async (ev) => {
-        const stream = await cameraStart(false);
+    async function updateVideoTrack(stream: MediaStream) {
         const track = stream.getVideoTracks()[0];
-        updateTrack(track);
-        localStream.addTrack(track);
-        localVideo.srcObject = localStream;
-    };
-    localVideo.oncontextmenu = async (ev) => {
-        ev.preventDefault();
-        // Get display stream before closing existing stream.
-        // Because it is more likely to fail.
-        const stream = await streamStart(-1, false);
-        const track = stream.getVideoTracks()[0];
-        streamStop(localStream, true, false);
-        updateTrack(track);
+        replaceRTCTrack(track);
         localStream.addTrack(track);
         localVideo.srcObject = localStream;
     }
@@ -128,6 +103,33 @@ export async function createConnection(configFromServer: IClientConfig) {
     remoteStream = new MediaStream();
     localVideo.srcObject = localStream;
     remoteVideo.srcObject = remoteStream;
+
+    // Change Camera
+    if ("getDisplayMedia" in navigator.mediaDevices) {
+        localVideo.onclick = async (ev) => {
+            // Switch Device
+            sourceID = 2;
+            deviceID += 1;
+            updateVideoTrack(await cameraStart(false));
+        };
+        localVideo.oncontextmenu = async (ev) => {
+            ev.preventDefault();
+            updateVideoTrack(await screenStart(false));
+        }
+    } else {
+        localVideo.onclick = async (ev) => {
+            // Switch Device
+            sourceID = (sourceID + 1) % 2;
+            deviceID = -1;
+            updateVideoTrack(await cameraStart(false));
+        };
+        localVideo.oncontextmenu = async (ev) => {
+            ev.preventDefault();
+            deviceID += 1;
+            updateVideoTrack(await cameraStart(false));
+        }
+    }
+
     return createConnectionFromStream(
         id, config, localStream, remoteStream
     )
