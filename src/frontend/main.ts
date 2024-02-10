@@ -1,4 +1,4 @@
-import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, updateTrack, updateVideoTrack } from "../common/webrtc";
+import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, socket, updateTrack } from "../common/webrtc";
 import { createDefaultConfig, getMediaStream, idFromURL, updateConfigOverride } from "../common/utils";
 import { IClientConfig, RecursivePartial } from "../common/interface";
 
@@ -36,7 +36,7 @@ export async function createConnection(configFromServer: IClientConfig) {
     // Device Memo
     const devices = await navigator.mediaDevices.enumerateDevices();
     const cameras = devices.filter(dev => dev.kind === 'videoinput').sort((dev1, dev2) => {
-        for (const key of ["front", "back", "rear"]) {
+        for (const key of ["front", "back"]) {
             const flag1 = dev1.label.toLowerCase().includes(key);
             const flag2 = dev2.label.toLowerCase().includes(key);
             if (flag1 !== flag2) {
@@ -54,7 +54,10 @@ export async function createConnection(configFromServer: IClientConfig) {
         streamStop(localStream, true, true);
         // Set Device ID
         console.info(`[DEV] Using camera`, cameras[curID]);
-        config.video.constraints.deviceId = { ideal: devices[curID].deviceId };
+        config.video.constraints.deviceId = devices[curID].deviceId
+        if(cameras[curID].label.includes("front")) config.video.constraints.facingMode = "user";
+        else if(cameras[curID].label.includes("back")) config.video.constraints.facingMode = "environment";
+        else config.video.constraints.facingMode = undefined;
         try {
             // Get Stream
             localStream = await navigator.mediaDevices.getUserMedia({
@@ -80,7 +83,10 @@ export async function createConnection(configFromServer: IClientConfig) {
         // Increment ID and Set Device ID
         curID = (curID + 1) % cameras.length;
         console.info(`[DEV] Using camera`, cameras[curID]);
-        config.video.constraints.deviceId = { ideal: devices[curID].deviceId };
+        config.video.constraints.deviceId = devices[curID].deviceId
+        if(cameras[curID].label.includes("front")) config.video.constraints.facingMode = "user";
+        else if(cameras[curID].label.includes("back")) config.video.constraints.facingMode = "environment";
+        else config.video.constraints.facingMode = undefined;
         try {
             // Get Stream
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -98,6 +104,7 @@ export async function createConnection(configFromServer: IClientConfig) {
         // Get display stream before closing existing stream.
         // Because it is more likely to fail.
         config.video.constraints.deviceId = undefined;
+        config.video.constraints.facingMode = undefined;
         const stream = await navigator.mediaDevices.getDisplayMedia({
             video: config.video.constraints,
             audio: false
