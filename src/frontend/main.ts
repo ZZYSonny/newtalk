@@ -4,12 +4,22 @@ import { IClientConfig, RecursivePartial } from "../common/interface";
 
 const localVideo: HTMLVideoElement = document.getElementById('localVideo') as HTMLVideoElement;
 const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as HTMLVideoElement;
-const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
+const popupMessage = document.getElementById("popupMessage") as HTMLSpanElement;
 const reportCaption = document.getElementById("reportCaption") as HTMLSpanElement;
 
 const id = idFromURL();
 let localStream: MediaStream;
 let remoteStream: MediaStream;
+
+let popInterval: number;
+function popup(message: string, time: number) {
+    if (popInterval) clearInterval(popInterval);
+    popupMessage.hidden = false;
+    popupMessage.innerText = message;
+    if(time>0){
+        popInterval = setTimeout(() => { popupMessage.hidden = true }, time);
+    }   
+}
 
 export async function createConnection(configFromServer: IClientConfig) {
     // Get override config
@@ -52,7 +62,7 @@ export async function createConnection(configFromServer: IClientConfig) {
         let stream: MediaStream;
 
         if (id >= 0) {
-            console.info(`[DEV] Using Camera`, cameras[curID]);
+            popup(`Using ${cameras[curID].label}`, 3000);
             config.video.constraints.deviceId = devices[curID].deviceId
             if (cameras[curID].label.includes("front")) config.video.constraints.facingMode = "user";
             else if (cameras[curID].label.includes("back")) config.video.constraints.facingMode = "environment";
@@ -62,7 +72,7 @@ export async function createConnection(configFromServer: IClientConfig) {
                 audio: config.audio.constraints
             });
         } else {
-            console.info(`[DEV] Using Display`);
+            popup(`Using Screen Capture`, 3000);
             config.video.constraints.deviceId = undefined;
             config.video.constraints.facingMode = undefined;
             stream = await navigator.mediaDevices.getDisplayMedia({
@@ -105,9 +115,9 @@ export async function createConnection(configFromServer: IClientConfig) {
         ev.preventDefault();
         // Get display stream before closing existing stream.
         // Because it is more likely to fail.
-        streamStop(localStream, true, false);
         const stream = await streamStart(-1, false);
         const track = stream.getVideoTracks()[0];
+        streamStop(localStream, true, false);
         updateTrack(track);
         localStream.addTrack(track);
         localVideo.srcObject = localStream;
@@ -117,14 +127,14 @@ export async function createConnection(configFromServer: IClientConfig) {
     localStream = await cameraStart(true);
     remoteStream = new MediaStream();
     localVideo.srcObject = localStream;
-    remoteVideo.srcObject = remoteStream;    
+    remoteVideo.srcObject = remoteStream;
     return createConnectionFromStream(
         id, config, localStream, remoteStream
     )
 }
 
 async function initPermission() {
-    stateCaption.textContent = "Requesting Media Permission...";
+    popup(`Requesting Media Permission...`, -1);
     const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true
@@ -134,9 +144,9 @@ async function initPermission() {
 
 async function initCall() {
     await initPermission();
-    stateCaption.textContent = "Connecting to Server...";
+    popup(`Connecting to Server...`, -1);
     await initializeSocket(null);
-    stateCaption.textContent = "Parsing Config...";
+    popup(`Parsing Config...`, -1);
     if (id.role === "admin") {
         const adminConfig = updateConfigOverride(
             "admin", updateConfigOverride(
@@ -151,7 +161,7 @@ async function initCall() {
         initializeWebRTCAdmin(
             id, adminConfig, clientConfig,
             (cfg) => createConnection(cfg),
-            (state) => stateCaption.textContent = state,
+            (state) => popup(state, 3000),
             (connection) => { },
             (r) => reportCaption.innerText = r.summary.join(" ")
         );
@@ -159,7 +169,7 @@ async function initCall() {
         initializeWebRTCClient(
             id,
             (cfg) => createConnection(cfg),
-            (state) => stateCaption.textContent = state,
+            (state) => popup(state, 3000),
             (connection) => { },
             (r) => reportCaption.innerText = r.summary.join(" ")
         );

@@ -163,7 +163,7 @@ function cbInitialConnected(
     return (ev) => {
         console.info(`[RTC][2.1][${self.role}] Connected to`, other);
         connection.onconnectionstatechange = null;
-        if (updateProgress) updateProgress(other.name);
+        if (updateProgress) updateProgress("Connected");
         if (postConnection) postConnection(connection);
         if (reportConnection) initializeWebRTCStats(connection, config.rtc.stats, reportConnection);
     }
