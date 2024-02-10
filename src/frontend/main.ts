@@ -11,23 +11,6 @@ const id = idFromURL();
 let localStream: MediaStream;
 let remoteStream: MediaStream;
 
-function streamStop(stream: MediaStream | undefined, video: boolean, audio: boolean) {
-    if (stream) {
-        if (video) {
-            stream.getVideoTracks().forEach(track => {
-                track.stop();
-                stream.removeTrack(track);
-            })
-        }
-        if (audio) {
-            stream.getAudioTracks().forEach(track => {
-                track.stop();
-                stream.removeTrack(track);
-            })
-        }
-    }
-}
-
 export async function createConnection(configFromServer: IClientConfig) {
     // Get override config
     const config = updateConfigOverride(
@@ -47,76 +30,94 @@ export async function createConnection(configFromServer: IClientConfig) {
         return dev1.label.localeCompare(dev2.label);
     });
     console.info(`[DEV] Found camera`, cameras);
-    // Set initial localStream
-    let curID = 0;
-    for (curID = 0; curID < cameras.length; curID++) {
-        // Close previous localStream
-        streamStop(localStream, true, true);
-        // Set Device ID
-        console.info(`[DEV] Using camera`, cameras[curID]);
-        config.video.constraints.deviceId = devices[curID].deviceId
-        if(cameras[curID].label.includes("front")) config.video.constraints.facingMode = "user";
-        else if(cameras[curID].label.includes("back")) config.video.constraints.facingMode = "environment";
-        else config.video.constraints.facingMode = undefined;
-        try {
-            // Get Stream
-            localStream = await navigator.mediaDevices.getUserMedia({
+
+    function streamStop(stream: MediaStream | undefined, video: boolean, audio: boolean) {
+        if (stream) {
+            if (video) {
+                stream.getVideoTracks().forEach(track => {
+                    track.stop();
+                    stream.removeTrack(track);
+                })
+            }
+            if (audio) {
+                stream.getAudioTracks().forEach(track => {
+                    track.stop();
+                    stream.removeTrack(track);
+                })
+            }
+        }
+    }
+
+    async function streamStart(id: number, audio: boolean) {
+        let stream: MediaStream;
+
+        if (id >= 0) {
+            console.info(`[DEV] Using Camera`, cameras[curID]);
+            config.video.constraints.deviceId = devices[curID].deviceId
+            if (cameras[curID].label.includes("front")) config.video.constraints.facingMode = "user";
+            else if (cameras[curID].label.includes("back")) config.video.constraints.facingMode = "environment";
+            else config.video.constraints.facingMode = undefined;
+            stream = await navigator.mediaDevices.getUserMedia({
                 video: config.video.constraints,
                 audio: config.audio.constraints
             });
-            // Check camera and audio are both available
-            if (localStream.getVideoTracks().length == 0) throw "Missing Video";
-            if (localStream.getAudioTracks().length == 0) throw "Missing Audio";
-            // Success
-            break;
-        } catch (error) {
-            alert(`Failed to use device: ${cameras[curID].label}\nError: ${error}`);
-        }
-    }
-    remoteStream = new MediaStream();
-    localVideo.srcObject = localStream;
-    remoteVideo.srcObject = remoteStream;
-    // Change Camera
-    localVideo.onclick = async (ev) => {
-        // Close previous video stream
-        streamStop(localStream, true, false);
-        // Increment ID and Set Device ID
-        curID = (curID + 1) % cameras.length;
-        console.info(`[DEV] Using camera`, cameras[curID]);
-        config.video.constraints.deviceId = devices[curID].deviceId
-        if(cameras[curID].label.includes("front")) config.video.constraints.facingMode = "user";
-        else if(cameras[curID].label.includes("back")) config.video.constraints.facingMode = "environment";
-        else config.video.constraints.facingMode = undefined;
-        try {
-            // Get Stream
-            const stream = await navigator.mediaDevices.getUserMedia({
+        } else {
+            console.info(`[DEV] Using Display`);
+            config.video.constraints.deviceId = undefined;
+            config.video.constraints.facingMode = undefined;
+            stream = await navigator.mediaDevices.getDisplayMedia({
                 video: config.video.constraints,
                 audio: false
-            });
-            // Update Track
-            updateTrack(localStream, stream.getVideoTracks()[0]);
-        } catch (error) {
-            alert(`Failed to use device: ${cameras[curID].label}\nError: ${error}`);
+            })
         }
+        if (stream.getVideoTracks().length == 0) throw "Missing Video";
+        if (audio && stream.getVideoTracks().length == 0) throw "Missing Audio";
+        return stream;
+    }
+
+    let curID = -1;
+    async function cameraStart(audio: boolean) {
+        for (let i = 0; i < cameras.length; i++) {
+            curID = (curID + 1) % cameras.length;
+            try {
+                // Get Stream
+                streamStop(localStream, true, audio);
+                localStream = await streamStart(curID, audio);
+                // Success
+                return localStream;
+            } catch (error) {
+                alert(`Failed to use device: ${cameras[curID].label}\nError: ${error}`);
+            }
+        }
+        alert(`No Camera Found`);
+        throw `No Camera Found`
+    }
+
+    // Change Camera
+    localVideo.onclick = async (ev) => {
+        const stream = await cameraStart(false);
+        const track = stream.getVideoTracks()[0];
+        updateTrack(track);
+        localStream.addTrack(track);
+        localVideo.srcObject = localStream;
     };
     localVideo.oncontextmenu = async (ev) => {
         ev.preventDefault();
         // Get display stream before closing existing stream.
         // Because it is more likely to fail.
-        config.video.constraints.deviceId = undefined;
-        config.video.constraints.facingMode = undefined;
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-            video: config.video.constraints,
-            audio: false
-        })
-        if (stream && stream.getVideoTracks().length > 0) {
-            // Success
-            curID = -1;
-            console.info(`[DEV] Switching to screen`);
-            streamStop(localStream, true, false);
-            updateTrack(localStream, stream.getVideoTracks()[0]);
-        }
+        streamStop(localStream, true, false);
+        const stream = await streamStart(-1, false);
+        const track = stream.getVideoTracks()[0];
+        updateTrack(track);
+        localStream.addTrack(track);
+        localVideo.srcObject = localStream;
     }
+
+    // Set initial localStream
+    localStream = await cameraStart(true);
+    remoteStream = new MediaStream();
+    localVideo.srcObject = localStream;
+    remoteVideo.srcObject = remoteStream;    
     return createConnectionFromStream(
         id, config, localStream, remoteStream
     )
