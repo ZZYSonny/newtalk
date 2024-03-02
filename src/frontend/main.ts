@@ -136,12 +136,16 @@ export async function createConnection(configFromServer: IClientConfig) {
 }
 
 async function initPermission() {
-    popup(`Requesting Media Permission...`, -1);
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-    });
-    stream.getTracks().forEach((track) => track.stop());
+    const stateCamera = await navigator.permissions.query({ name: "camera" });
+    const stateMicrophone = await navigator.permissions.query({ name: "microphone" });
+    if (stateCamera.state !== "granted" || stateMicrophone.state !== "granted") {
+        popup(`Requesting Media Permission...`, -1);
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+        stream.getTracks().forEach((track) => track.stop());
+    }
 }
 
 async function initCall() {
