@@ -14,6 +14,10 @@ export function profileFromURL(dict: URLSearchParams | Map<string, string> = sea
     return dict.get("all.profile.rtc")?.split("-") || Object.keys(ProfileRTC).sort();
 }
 
+export function roleProfileFromURL(role: string, dict: URLSearchParams | Map<string, string> = search): string | null | undefined {
+    return dict.get(`${role}.profile.rtc`);
+}
+
 function getArg<T>(dict: URLSearchParams | Map<string, string>, prefix: string, name: string, f: (s: string) => T) {
     const p = dict.get(`${prefix}.${name}`);
     if (!p) return undefined;

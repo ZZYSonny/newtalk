@@ -1,5 +1,5 @@
 import { IClientConfig, INetReport } from "../common/interface";
-import { createDefaultConfig, idFromURL, profileFromURL, updateConfigOverride } from "../common/utils";
+import { createDefaultConfig, idFromURL, profileFromURL, roleProfileFromURL, updateConfigOverride } from "../common/utils";
 import { createConnectionFromStream, initializeSocket, initializeWebRTCAdmin, initializeWebRTCClient, socket } from "../common/webrtc";
 const stateCaption = document.getElementById("stateCaption") as HTMLSpanElement;
 const speedOutput = document.getElementById("speedOutput") as HTMLSpanElement;
@@ -8,7 +8,7 @@ const remoteVideo: HTMLVideoElement = document.getElementById('remoteVideo') as 
 
 const id = idFromURL();
 const TOTAL_SEC = 12;
-let rtcProfileName = "NEW";
+let benchmarkProfile = "NEW";
 
 function perfLogStart(verb: string, stage: string) {
     speedOutput.innerText += `${verb} ${stage}\n`;
@@ -54,8 +54,8 @@ async function initCall() {
 
     if (id.role === "admin") {
         //for (rtcProfileName of ["p6"]) {
-        for (rtcProfileName of profileFromURL()) {
-            perfLogStart("Starting", rtcProfileName);
+        for (benchmarkProfile of profileFromURL()) {
+            perfLogStart("Starting", benchmarkProfile);
             const speedConfig = updateConfigOverride(
                 "all",
                 createDefaultConfig(),
@@ -64,22 +64,26 @@ async function initCall() {
                     ["all.profile.video", "speed"]
                 ]),
             )
-            const allConfig = updateConfigOverride(
+            const adminConfig = updateConfigOverride(
                 "all", speedConfig,
-                new Map([["all.profile.rtc", rtcProfileName]])
+                new Map([["all.profile.rtc", roleProfileFromURL("admin") || benchmarkProfile]])
+            )
+            const clientConfig = updateConfigOverride(
+                "all", speedConfig,
+                new Map([["all.profile.rtc", roleProfileFromURL("client") || benchmarkProfile]])
             )
             initializeWebRTCAdmin(
-                id, allConfig, allConfig,
+                id, adminConfig, clientConfig,
                 (c) => createConnection(c),
                 (s) => stateCaption.innerText = s,
                 (c) => {
                     perfLogStart("", "");
-                    perfLogStart("Connected", rtcProfileName)
+                    perfLogStart("Connected", benchmarkProfile)
                 },
                 (r) => perfLocalReport(r)
             );
             await new Promise(r => window.setTimeout(r, (TOTAL_SEC + 2) * 1000));
-            perfLogStart("Finished", rtcProfileName);
+            perfLogStart("Finished", benchmarkProfile);
         }
     } else if (id.role === "client") {
         initializeWebRTCClient(
@@ -88,7 +92,7 @@ async function initCall() {
             (s) => stateCaption.innerText = s,
             (c) => {
                 perfLogStart("", "");
-                perfLogStart("Connected", rtcProfileName)
+                perfLogStart("Connected", benchmarkProfile)
             },
             (r) => perfLocalReport(r)
         )
