@@ -26,6 +26,11 @@ function browserListeners(self: IIdentity) {
         socket.emit("webrtc error", self, ev.reason.toString());
     });
     socket.on("webrtc error broadcast", (id, msg) => console.error("[Remote Error]", msg))
+    socket.on("disconnect", () => {
+        setTimeout(() => {
+            location.reload()
+        }, 5000)
+    });
 }
 
 function cbInitialIceCandidate(connection: RTCPeerConnection, self: IIdentity, config: IClientConfig) {
