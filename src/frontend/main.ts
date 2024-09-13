@@ -71,6 +71,11 @@ export async function createConnection(configFromServer: IClientConfig) {
             config.video.constraints.deviceId = undefined;
             popup(`Using camera facing ${sourceIDtoLabel[sourceID]}`, 3000);
         }
+        if (sourceID == 0) {
+            localVideo.style.transform = "scaleX(-1)";
+        } else {
+            localVideo.style.transform = "scaleX(1)";
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
             video: config.video.constraints,
             audio: config.audio.constraints

@@ -62,7 +62,8 @@
 }
 
 
-html, body {
+html,
+body {
     margin: 0;
     background-color: rgb(40, 40, 40)
 }
