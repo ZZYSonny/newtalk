@@ -174,7 +174,7 @@ async function initCall() {
             (cfg) => createConnection(cfg),
             (state) => popup(state, 3000),
             (connection) => { },
-            (r) => reportCaption.innerText = r.summary.join(" ")
+            (r) => reportCaption.innerText = r.summary
         );
     } else if (id.role === "client") {
         initializeWebRTCClient(
@@ -182,7 +182,7 @@ async function initCall() {
             (cfg) => createConnection(cfg),
             (state) => popup(state, 3000),
             (connection) => { },
-            (r) => reportCaption.innerText = r.summary.join(" ")
+            (r) => reportCaption.innerText = r.summary
         );
     }
 }

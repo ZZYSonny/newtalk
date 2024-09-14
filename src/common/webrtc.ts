@@ -95,6 +95,29 @@ async function initializeWebRTCStats(
     connection: RTCPeerConnection, config: IClientStatsConfig,
     reportConnection: (report: INetReport) => void
 ) {
+    const toMbps = (bytes: number) => {
+        if (bytes) {
+            return (bytes / 1024 / 1024 * 8) / config.interval
+        } else {
+            return 0;
+        }
+    };
+    const MbpsFormatter = (x: number) => {
+        if (x < 10) {
+            return x.toFixed(1);
+        } else {
+            return x.toFixed(0);
+        }
+    };
+    const PercFormatter = (x: number) => {
+        if (x < 10) {
+            return x.toFixed(1);
+        } else {
+            return x.toFixed(0);
+        }
+    };
+
+
     await new Promise(r => window.setTimeout(r, config.delay * 1000));
     let curID = 0;
     let lastStats = await connection.getStats();
@@ -104,54 +127,38 @@ async function initializeWebRTCStats(
         } else {
             const curStats = await connection.getStats();
 
-            let DeltaSent = 0;
-            let DeltaRecv = 0;
-            let DeltaLoss = 0;
-            let curSentMaxBandwidth = 0;
+            let ans: INetReport = {
+                id: curID,
+                inMbps: 0,
+                inLoss: 0,
+                outMbps: 0,
+                outLoss: 0,
+                outMaxMbps: 0,
+                summary: ""
+            };
 
             for (const curDict of curStats.values()) {
                 const lastDict = lastStats.get(curDict.id);
                 if (curDict.type === "candidate-pair" && curDict.nominated && curDict.state === "succeeded") {
-                    //console.info(`[Perf] Using Candidate Pair ${curDict.id}`);
-                    if (curDict.availableOutgoingBitrate) {
-                        curSentMaxBandwidth += curDict.availableOutgoingBitrate;
-                    }
-                } else if (curDict.type === "outbound-rtp") {
-                    //console.info(`[Perf] Using Outbound RTP ${curDict.id}`);
-                    if (curDict.bytesSent) {
-                        DeltaSent += curDict.bytesSent - lastDict?.bytesSent || 0;
-                    }
-                    if (curDict.retransmittedBytesSent) {
-                        DeltaLoss += curDict.retransmittedBytesSent - lastDict?.retransmittedBytesSent || 0;
-                    }
-                } else if (curDict.type === "inbound-rtp") {
-                    //console.info(`[Perf] Using Inbound RTP ${curDict.id}`);
-                    if (curDict.bytesReceived) {
-                        DeltaRecv += curDict.bytesReceived - lastDict?.bytesReceived || 0;
-                    }
+                    ans.outMaxMbps += toMbps(curDict.availableOutgoingBitrate);
+                } else if (curDict.type === "inbound-rtp" && curDict.kind == "video") {
+                    ans.inMbps = toMbps(curDict?.bytesReceived - lastDict?.bytesReceived);
+                    ans.inLoss = curDict?.packetsLost;
+                } else if (curDict.type === "outbound-rtp" && curDict.kind == "video") {
+                    ans.outMbps = toMbps(curDict?.bytesSent - lastDict?.bytesSent);
+                } else if (curDict.type === "remote-inbound-rtp" && curDict.kind == "video") {
+                    ans.outLoss = curDict?.packetsLost;
                 }
             }
-            let MbpsRecv = ((DeltaRecv) / 1024 / 1024 * 8) / config.interval;
-            let MbpsSent = ((DeltaSent) / 1024 / 1024 * 8) / config.interval;
-            let MbpsSentMax = curSentMaxBandwidth / 1024 / 1024;
-            let PercSentLoss = (DeltaLoss) / (DeltaSent);
-            let summary: string[] = []
-            let formatter = (x: number) => (x > 10) ? x.toFixed(0) : x.toFixed(1);
 
-            if (MbpsRecv > 0 || MbpsSent > 0 || MbpsSentMax > 0 || PercSentLoss > 0) {
-                summary.push(`${formatter(MbpsRecv)}↓`);
-                summary.push(`${formatter(MbpsSent)}↑`);
-                summary.push(`(${formatter(MbpsSentMax)})`);
-                summary.push(`${formatter(PercSentLoss)}%`);
+            if (ans.inMbps > 0 || ans.outMbps > 0) {
+                ans.summary = [
+                    `[${PercFormatter(ans.inLoss)}%] ${MbpsFormatter(ans.inMbps)}▼`.padEnd(20, " "),
+                    `[${PercFormatter(ans.outLoss)}%] ${MbpsFormatter(ans.outMbps)}▲`.padEnd(20, " "),
+                    `${MbpsFormatter(ans.outMaxMbps)}►`
+                ].join("");
 
-                reportConnection({
-                    id: curID,
-                    inMbps: MbpsRecv,
-                    outMbps: MbpsSent,
-                    outMaxMbps: MbpsSentMax,
-                    outLoss: PercSentLoss,
-                    summary: summary
-                })
+                reportConnection(ans)
                 curID += 1;
             }
             lastStats = curStats;
@@ -166,7 +173,7 @@ function cbInitialConnected(
     reportConnection: null | ((report: INetReport) => void)
 ) {
     return (ev) => {
-        console.info(`[RTC][2.1][${self.role}] Connected to`, other);
+        console.info(`[RTC][2.1][${self.role}]Connected to`, other);
         connection.onconnectionstatechange = null;
         if (updateProgress) updateProgress("Connected");
         if (postConnection) postConnection(connection);
@@ -189,7 +196,7 @@ export function initializeWebRTCAdmin(
     socket.on("room ready broadcast", async (room: string) => {
         console.clear();
 
-        console.info(`[RTC][0.0][Admin] Received Ready from ${room}`);
+        console.info(`[RTC][0.0][Admin] Received Ready from ${room} `);
 
         config = adminConfig;
         console.info(`[RTC][0.1][Admin] Chosen config`, config);

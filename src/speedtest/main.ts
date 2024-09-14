@@ -17,7 +17,7 @@ function perfLogStart(verb: string, stage: string) {
 
 function perfLogSummary(side: string, r: INetReport) {
     const labels = `[${r.id}][${side}]    `;
-    const items = r.summary.map(s => s.padEnd(8, " ")).join("");
+    const items = r.summary;
     speedOutput.innerText += `${labels}${items}\n`;
     console.log(`[PERF]${labels}${items}`);
 }

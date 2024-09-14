@@ -33,11 +33,12 @@ export interface IClientConfig {
 
 export interface INetReport {
     id: number,
-    inMbps: number | undefined,
-    outMbps: number | undefined,
-    outMaxMbps: number | undefined,
-    outLoss: number | undefined,
-    summary: string[]
+    inMbps: number,
+    inLoss: number,
+    outMbps: number,
+    outLoss: number,
+    outMaxMbps: number,
+    summary: string
 }
 
 export interface IIdentity {
