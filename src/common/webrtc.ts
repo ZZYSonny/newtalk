@@ -151,16 +151,14 @@ async function initializeWebRTCStats(
                 }
             }
 
-            if (ans.inMbps > 0 || ans.outMbps > 0) {
-                ans.summary = [
-                    `[${PercFormatter(ans.inLoss)}%] ${MbpsFormatter(ans.inMbps)}▼`.padEnd(20, " "),
-                    `[${PercFormatter(ans.outLoss)}%] ${MbpsFormatter(ans.outMbps)}▲`.padEnd(20, " "),
-                    `${MbpsFormatter(ans.outMaxMbps)}►`
-                ].join("");
+            ans.summary = [
+                `[${PercFormatter(ans.inLoss)}%] ${MbpsFormatter(ans.inMbps)}▼`.padEnd(20, " "),
+                `[${PercFormatter(ans.outLoss)}%] ${MbpsFormatter(ans.outMbps)}▲`.padEnd(20, " "),
+                `${MbpsFormatter(ans.outMaxMbps)}►`
+            ].join("");
 
-                reportConnection(ans)
-                curID += 1;
-            }
+            reportConnection(ans)
+            curID += 1;
             lastStats = curStats;
         }
     }, config.interval * 1000)
