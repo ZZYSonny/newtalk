@@ -23,10 +23,10 @@
     margin: 1em;
     padding: 0;
 
-    height: 25%;
     width: fit-content;
+    max-height: 25%;
     min-width: 160px;
-    max-width: 30%;
+    max-width: 32%;
     object-fit: cover;
 
     border-radius: 10px;

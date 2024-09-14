@@ -90,7 +90,7 @@ export const createDefaultConfig = () => {
             codecs: ["AV1", "VP9"],
             bitrate: 6,
             constraints: {
-                width: { ideal: 1080 },
+                width: { ideal: 960 },
                 height: { ideal: 720 },
                 frameRate: { ideal: 30 }
             }
