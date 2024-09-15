@@ -140,7 +140,7 @@ async function initializeWebRTCStats(
             for (const curDict of curStats.values()) {
                 const lastDict = lastStats.get(curDict.id);
                 if (curDict.type === "candidate-pair" && curDict.nominated && curDict.state === "succeeded") {
-                    ans.outMaxMbps += toMbps(curDict.availableOutgoingBitrate);
+                    ans.outMaxMbps = Math.max(ans.outMaxMbps, (curDict.availableOutgoingBitrate || 0) / 1024 / 1024);
                 } else if (curDict.type === "inbound-rtp" && curDict.kind == "video") {
                     ans.inMbps = toMbps(curDict?.bytesReceived - lastDict?.bytesReceived);
                     ans.inLoss = curDict?.packetsLost;
