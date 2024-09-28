@@ -153,6 +153,14 @@ async function initCall() {
     }
 }
 
+remoteVideo.onclick = () => {
+    if (document.fullscreenElement) {
+        document.exitFullscreen()
+    } else {
+        document.documentElement.requestFullscreen()
+    }
+}
+
 if (window.location.pathname.includes("call.html")) {
     initCall()
 }

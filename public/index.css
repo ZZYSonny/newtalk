@@ -20,13 +20,13 @@
     top: 0;
     left: 0;
 
-    margin: 1em;
+    margin: 0.3em;
     padding: 0;
 
     width: fit-content;
     max-height: 25%;
-    min-width: 160px;
-    max-width: 32%;
+    min-width: 18%;
+    max-width: 33%;
     object-fit: cover;
 
     border-radius: 10px;
@@ -46,7 +46,7 @@
     background-color: rgba(0, 0, 0, 0.4);
     border-radius: 16px;
     z-index: 2;
-    font-size: 2em;
+    font-size: 1em;
 }
 
 #reportCaption {
@@ -59,7 +59,7 @@
     background-color: rgba(0, 0, 0, 0.4);
     border-radius: 4px;
     z-index: 2;
-    font-size: 1.5em;
+    font-size: 0.8em;
 }
 
 
