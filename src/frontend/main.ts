@@ -26,13 +26,6 @@ export async function createConnection(configFromServer: IClientConfig) {
     const config = updateConfigOverride(
         "override", configFromServer
     )
-    // Device Memo
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const cameras = devices.filter(dev => dev.kind === 'videoinput').sort((dev1, dev2) => {
-        return dev1.label.localeCompare(dev2.label);
-    });
-    console.info(`[DEV] Found camera`, cameras);
-
     function streamStop(stream: MediaStream | undefined, video: boolean, audio: boolean) {
         if (stream) {
             if (video) {
@@ -50,30 +43,16 @@ export async function createConnection(configFromServer: IClientConfig) {
         }
     }
 
-    let sourceID: number = 0;
-    let deviceID: number = -1;
-    const sourceIDtoConstraint = ["user", "environment", undefined];
-    const sourceIDtoLabel = ["front", "back", ""];
+    const facingString = ["user", "environment"];
+    let facingID = 0;
 
     async function cameraStart(audio: boolean) {
         streamStop(localStream, true, audio);
-        config.video.constraints.facingMode = sourceIDtoConstraint[sourceID];
-        if (deviceID >= 0) {
-            const filtered = cameras.filter(dev => dev.label.includes(sourceIDtoLabel[sourceID]));
-            if (filtered.length === 0) {
-                popup(`No matching camera, facing ${sourceIDtoLabel[sourceID]}`, 3000);
-                throw "No matching camera";
-            }
-            const cam = filtered[deviceID % filtered.length];
-            config.video.constraints.deviceId = cam.deviceId;
-            popup(`Using ${cam.label}`, 3000);
-        } else {
-            config.video.constraints.deviceId = undefined;
-            popup(`Using camera facing ${sourceIDtoLabel[sourceID]}`, 3000);
-        }
-        if (sourceID == 0) {
+        config.video.constraints.facingMode = facingString[facingID];
+        popup(`Using camera facing ${facingString[facingID]}`, 3000);
+        if (facingID == 0) {
             localVideo.style.transform = "scaleX(-1)";
-        } else {
+        } else if (facingID == 1) {
             localVideo.style.transform = "scaleX(1)";
         }
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -110,28 +89,15 @@ export async function createConnection(configFromServer: IClientConfig) {
     remoteVideo.srcObject = remoteStream;
 
     // Change Camera
+    localVideo.onclick = async (ev) => {
+        // Switch Device
+        facingID = (facingID + 1) % 2;
+        updateVideoTrack(await cameraStart(false));
+    };
     if ("getDisplayMedia" in navigator.mediaDevices) {
-        localVideo.onclick = async (ev) => {
-            // Switch Device
-            sourceID = 2;
-            deviceID += 1;
-            updateVideoTrack(await cameraStart(false));
-        };
         localVideo.oncontextmenu = async (ev) => {
             ev.preventDefault();
             updateVideoTrack(await screenStart(false));
-        }
-    } else {
-        localVideo.onclick = async (ev) => {
-            // Switch Device
-            sourceID = (sourceID + 1) % 2;
-            deviceID = -1;
-            updateVideoTrack(await cameraStart(false));
-        };
-        localVideo.oncontextmenu = async (ev) => {
-            ev.preventDefault();
-            deviceID += 1;
-            updateVideoTrack(await cameraStart(false));
         }
     }
 

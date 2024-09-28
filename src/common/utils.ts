@@ -91,14 +91,16 @@ export const createDefaultConfig = () => {
             bitrate: 6,
             buffer: null,
             constraints: {
-                width: { ideal: 960 },
+                width: { ideal: 1080 },
                 height: { ideal: 720 },
-                frameRate: { ideal: 30 }
+                frameRate: { ideal: 30 },
+                resizeMode: { exact: "none" },
+                zoom: { ideal: 1.0 }
             }
         },
         audio: {
             constraints: {
-                noiseSuppression: true,
+                // noiseSuppression: true,
                 echoCancellation: true,
                 autoGainControl: true,
                 channelCount: 2,
