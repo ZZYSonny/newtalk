@@ -30,7 +30,7 @@ async function perfLocalReport(r: INetReport) {
 async function createConnection(config: IClientConfig) {
     socket.removeListener("webrtc debug broadcast");
     socket.on("webrtc debug broadcast", (id, r) => {
-        perfLogSummary("REMOTE", r);
+        //perfLogSummary("REMOTE", r);
     })
     while (localVideo.paused) {
         localVideo.play();

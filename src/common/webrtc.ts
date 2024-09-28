@@ -88,6 +88,10 @@ export function createConnectionFromStream(
     videoParameters.encodings[0].maxBitrate = config.video.bitrate * 1000000;
     videoSender.setParameters(videoParameters);
 
+    // Set Preferred Latency
+    pc.getReceivers().forEach((receiver) => {
+        receiver.jitterBufferTarget = config.video.buffer;
+    })
     return pc;
 }
 
