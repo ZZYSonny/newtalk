@@ -24,7 +24,9 @@ io.sockets.on('connection', (socket) => {
           io.sockets.in(id.room).emit("room ready broadcast", id.room);
         }
       } else {
-        socket.emit("room full message", id.room);
+        io.sockets.in(id.room).emit("page refresh");
+        io.sockets.in(id.room).socketsLeave(id.room);
+        socket.emit("page refresh");
       }
     }
   });
@@ -54,7 +56,7 @@ io.sockets.on('connection', (socket) => {
     socket.to(id.room).emit("webrtc debug broadcast", id, ...args);
   })
 
-  socket.on("control refresh", ()=>{
+  socket.on("control refresh", () => {
     console.log(`One client sends refresh signal to all clients`)
     io.emit("page refresh")
   })
