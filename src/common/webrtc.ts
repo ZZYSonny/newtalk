@@ -78,20 +78,30 @@ export function createConnectionFromStream(
 
     // Set Preferred video codec
     const videoTransceiver = pc.getTransceivers().find((s) => (s.sender.track ? s.sender.track.kind === 'video' : false))!;
-    const supportVideoCodec = RTCRtpSender.getCapabilities('video')!.codecs;
-    const selectedVideoCodec = config.video.codecs.map((name) => supportVideoCodec.filter((codec) => codec.mimeType.includes(name))).flat();
-    videoTransceiver.setCodecPreferences(selectedVideoCodec);
+    if (videoTransceiver) {
+        const supportVideoCodec = RTCRtpSender.getCapabilities('video')!.codecs;
+        const selectedVideoCodec = config.video.codecs.map((name) => supportVideoCodec.filter((codec) => codec.mimeType.includes(name))).flat();
+        videoTransceiver.setCodecPreferences(selectedVideoCodec);
 
-    // Set Preferred bitrate
-    const videoSender = videoTransceiver.sender;
-    const videoParameters = videoSender.getParameters();
-    videoParameters.encodings[0].maxBitrate = config.video.bitrate * 1000000;
-    videoSender.setParameters(videoParameters);
-
+        // Set Preferred bitrate
+        const videoSender = videoTransceiver.sender;
+        const videoParameters = videoSender.getParameters();
+        videoParameters.encodings[0].maxBitrate = config.video.bitrate * 1000000;
+        videoSender.setParameters(videoParameters);
+    }
+    const audioTransceiver = pc.getTransceivers().find((s) => (s.sender.track ? s.sender.track.kind === 'audio' : false))!;
+    if (audioTransceiver) {
+        // Set Preferred bitrate
+        const audioSender = audioTransceiver.sender;
+        const audioParameters = audioSender.getParameters();
+        audioParameters.encodings[0].maxBitrate = config.audio.bitrate * 1000;
+        audioSender.setParameters(audioParameters);
+    }
     // Set Preferred Latency
     pc.getReceivers().forEach((receiver) => {
         receiver.jitterBufferTarget = config.video.buffer;
     })
+
     return pc;
 }
 

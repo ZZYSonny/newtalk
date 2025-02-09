@@ -99,12 +99,13 @@ export const createDefaultConfig = () => {
             }
         },
         audio: {
+            bitrate: 320,
             constraints: {
-                // noiseSuppression: true,
+                noiseSuppression: true,
                 echoCancellation: true,
                 autoGainControl: true,
                 channelCount: 2,
-                sampleRate: 44100,
+                sampleRate: 48000,
                 echoCancellationType: "system"
             }
         }
