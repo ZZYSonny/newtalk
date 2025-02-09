@@ -105,6 +105,7 @@ export const createDefaultConfig = () => {
                 autoGainControl: true,
                 channelCount: 2,
                 sampleRate: 44100,
+                echoCancellationType: "system"
             }
         }
     } as IClientConfig;
