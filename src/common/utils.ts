@@ -101,12 +101,19 @@ export const createDefaultConfig = () => {
         audio: {
             bitrate: 320,
             constraints: {
+                voiceIsolation: true,
                 noiseSuppression: true,
                 echoCancellation: true,
                 autoGainControl: true,
-                channelCount: 2,
-                sampleRate: 48000,
-                echoCancellationType: "system"
+                channelCount: 1,
+                sampleRate: 44100,
+                echoCancellationType: "browser",
+                googEchoCancellation: true,
+                googHighpassFilter: true,
+                //googAutoGainControl: true,
+                //googNoiseSuppression: true,
+                //googTypingNoiseDetection: true,
+                //googNoiseReduction: true,
             }
         }
     } as IClientConfig;
