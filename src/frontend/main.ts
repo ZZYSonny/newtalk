@@ -25,7 +25,14 @@ export async function createConnection(configFromServer: IClientConfig) {
     // Get override config
     const config = updateConfigOverride(
         "override", configFromServer
-    )
+    )        
+    // Do not use AEC if bluetooth microphone is detected.
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const bluetooth = devices.some(device => device.kind === "audioinput" && device.label.includes("Bluetooth"));
+    if (bluetooth) {
+        config.audio.constraints.echoCancellation = false;
+    }
+
     function streamStop(stream: MediaStream | undefined, video: boolean, audio: boolean) {
         if (stream) {
             if (video) {
