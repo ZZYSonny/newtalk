@@ -220,7 +220,7 @@ export function initializeWebRTCAdmin(
 
         if (updateProgress) updateProgress("Creating Offer...");
         const offer = await connection.createOffer();
-        connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
+        offer.sdp = offer.sdp?.replace("useinbandfec=1", "useinbandfec=1;usedtx=1")
         await connection.setLocalDescription(offer);
         socket.emit("webrtc offer", self, clientConfig, offer);
         console.info(`[RTC][0.3][Admin] Created, Set and Sent Offer`, offer);
@@ -293,6 +293,7 @@ export function initializeWebRTCClient(
 
         await connection.setRemoteDescription(offer);
         const answer = await connection.createAnswer();
+        answer.sdp = answer.sdp?.replace("useinbandfec=1", "useinbandfec=1;usedtx=1")
         connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
         await connection.setLocalDescription(answer);
         socket.emit("webrtc answer", self, answer);
