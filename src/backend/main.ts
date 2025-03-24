@@ -12,6 +12,7 @@ const devMode = process.argv.includes("dev");
         target: "es2022",
         entryPoints: [
             'src/frontend/main.ts',
+            'src/frontend/vad.ts',
             'src/speedtest/main.ts',
             'src/control/main.ts'
         ],

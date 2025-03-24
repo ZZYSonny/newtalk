@@ -25,7 +25,7 @@ export async function createConnection(configFromServer: IClientConfig) {
     // Get override config
     const config = updateConfigOverride(
         "override", configFromServer
-    )        
+    )
     // Do not use AEC if bluetooth microphone is detected.
     const devices = await navigator.mediaDevices.enumerateDevices();
     const bluetooth = devices.some(device => device.kind === "audioinput" && device.label.includes("Bluetooth"));
@@ -66,6 +66,37 @@ export async function createConnection(configFromServer: IClientConfig) {
             video: config.video.constraints,
             audio: config.audio.constraints
         });
+
+        if (true) {
+            const ctx = new AudioContext();
+            await ctx.audioWorklet.addModule("./js/frontend/vad.js");
+            const src = ctx.createMediaStreamSource(stream);
+            const node1 = new BiquadFilterNode(ctx, {
+                type: "lowpass",
+                frequency: 2400,
+            });
+            const node2 = new BiquadFilterNode(ctx, {
+                type: "highpass",
+                frequency: 100,
+            });
+            const node3 = new AudioWorkletNode(ctx, "zzy-vad");
+            node3.port.onmessage = e => {
+                const newState = e.data;
+                if (newState) {
+                    localVideo.style.borderColor = "green"
+                } else {
+                    localVideo.style.borderColor = "inherit";
+                }
+            }
+            const dst = ctx.createMediaStreamDestination();
+            src.connect(node1);
+            node1.connect(node2);
+            node2.connect(node3);
+            node3.connect(dst);
+            stream.getAudioTracks().forEach(t => stream.removeTrack(t));
+            dst.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+        }
+
         return stream;
     }
 

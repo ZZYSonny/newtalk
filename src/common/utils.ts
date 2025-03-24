@@ -99,7 +99,7 @@ export const createDefaultConfig = () => {
             }
         },
         audio: {
-            bitrate: 64,
+            bitrate: 320,
             constraints: {
                 voiceIsolation: true,
                 noiseSuppression: true,
