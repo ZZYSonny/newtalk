@@ -13,6 +13,7 @@ const devMode = process.argv.includes("dev");
         entryPoints: [
             'src/frontend/main.ts',
             'src/frontend/vad.ts',
+            'src/frontend/rnnoise.ts',
             'src/speedtest/main.ts',
             'src/control/main.ts'
         ],

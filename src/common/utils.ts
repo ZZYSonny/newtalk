@@ -106,7 +106,7 @@ export const createDefaultConfig = () => {
                 echoCancellation: true,
                 autoGainControl: true,
                 channelCount: 1,
-                sampleRate: 44100,
+                sampleRate: 48000,
                 echoCancellationType: "browser",
                 googEchoCancellation: true,
                 googHighpassFilter: true,

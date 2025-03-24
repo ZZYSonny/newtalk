@@ -69,16 +69,16 @@ export async function createConnection(configFromServer: IClientConfig) {
 
         if (true) {
             const ctx = new AudioContext();
+            await ctx.audioWorklet.addModule("./js/frontend/rnnoise.js");
             await ctx.audioWorklet.addModule("./js/frontend/vad.js");
             const src = ctx.createMediaStreamSource(stream);
+            const dst = ctx.createMediaStreamDestination();
             const node1 = new BiquadFilterNode(ctx, {
-                type: "lowpass",
-                frequency: 2400,
+                type: "bandpass",
+                frequency: 1000,
+                Q: 0.45,
             });
-            const node2 = new BiquadFilterNode(ctx, {
-                type: "highpass",
-                frequency: 100,
-            });
+            const node2 = new AudioWorkletNode(ctx, "NoiseSuppressorWorklet")
             const node3 = new AudioWorkletNode(ctx, "zzy-vad");
             node3.port.onmessage = e => {
                 const newState = e.data;
@@ -88,11 +88,7 @@ export async function createConnection(configFromServer: IClientConfig) {
                     localVideo.style.borderColor = "inherit";
                 }
             }
-            const dst = ctx.createMediaStreamDestination();
-            src.connect(node1);
-            node1.connect(node2);
-            node2.connect(node3);
-            node3.connect(dst);
+            src.connect(node1).connect(node2).connect(node3).connect(dst);
             stream.getAudioTracks().forEach(t => stream.removeTrack(t));
             dst.stream.getAudioTracks().forEach(t => stream.addTrack(t));
         }
