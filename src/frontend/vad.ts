@@ -1,6 +1,5 @@
 
 class MyAudioProcessor extends AudioWorkletProcessor {
-    historyVolume: number = 0.0;
     historySpeaking: boolean = false;
 
 
@@ -9,9 +8,6 @@ class MyAudioProcessor extends AudioWorkletProcessor {
     }
 
     process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean {
-        const volumeGrow: number = 0.2;
-        const volumeDecay: number = 0.044;
-
         let square = 0.0;
         let count = 0;
         for (const input of inputs)
@@ -21,26 +17,17 @@ class MyAudioProcessor extends AudioWorkletProcessor {
                     count += 1;
                 }
 
-        const curVolume = square / count;
-        if (curVolume < this.historyVolume) {
-            this.historyVolume = (1 - volumeDecay) * this.historyVolume + volumeDecay * curVolume;
-        } else {
-            this.historyVolume = (1 - volumeGrow) * this.historyVolume + volumeGrow * curVolume;
-        }
-
-        const curSpeaking = this.historyVolume > 1e-6;
+        const curSpeaking = (square / count) > 1e-6;
 
         if (this.historySpeaking !== curSpeaking) {
             this.historySpeaking = curSpeaking;
             this.port.postMessage(curSpeaking)
         }
 
-
-        if (curSpeaking) {
-            for (let i = 0; i < Math.min(inputs.length, outputs.length); i++)
-                for (let j = 0; j < Math.min(inputs[i].length, outputs[i].length); j++)
-                    outputs[i][j].set(inputs[i][j]);
-        }
+        
+        for (let i = 0; i < Math.min(inputs.length, outputs.length); i++)
+            for (let j = 0; j < Math.min(inputs[i].length, outputs[i].length); j++)
+                outputs[i][j].set(inputs[i][j]);
         return true;
     }
 }

@@ -167,17 +167,6 @@ export default class RnnoiseProcessor {
     }
 
     /**
-     * Calculate the Voice Activity Detection for a raw Float32 PCM sample Array.
-     * The size of the array must be of exactly 480 samples, this constraint comes from the rnnoise library.
-     *
-     * @param {Float32Array} pcmFrame - Array containing 32 bit PCM samples.
-     * @returns {Float} Contains VAD score in the interval 0 - 1 i.e. 0.90.
-     */
-    calculateAudioFrameVAD(pcmFrame: Float32Array): number {
-        return this.processAudioFrame(pcmFrame);
-    }
-
-    /**
      * Process an audio frame, optionally denoising the input pcmFrame and returning the Voice Activity Detection score
      * for a raw Float32 PCM sample Array.
      * The size of the array must be of exactly 480 samples, this constraint comes from the rnnoise library.
@@ -203,9 +192,13 @@ export default class RnnoiseProcessor {
         // Rnnoise denoises the frame by default but we can avoid unnecessary operations if the calling
         // client doesn't use the denoised frame.
         if (shouldDenoise) {
-            // Convert back to 32 bit PCM
-            for (let i = 0; i < RNNOISE_SAMPLE_LENGTH; i++) {
-                pcmFrame[i] = this._wasmInterface.HEAPF32[this._wasmPcmInputF32Index + i] / SHIFT_16_BIT_NR;
+            if (vadScore > 0.7) {
+                // Convert back to 32 bit PCM
+                for (let i = 0; i < RNNOISE_SAMPLE_LENGTH; i++) {
+                    pcmFrame[i] = this._wasmInterface.HEAPF32[this._wasmPcmInputF32Index + i] / SHIFT_16_BIT_NR;
+                }
+            } else {
+                pcmFrame.fill(0);
             }
         }
 
