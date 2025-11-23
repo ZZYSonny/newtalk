@@ -192,7 +192,7 @@ export default class RnnoiseProcessor {
         // Rnnoise denoises the frame by default but we can avoid unnecessary operations if the calling
         // client doesn't use the denoised frame.
         if (shouldDenoise) {
-            if (vadScore > 0.7) {
+            if (vadScore > 0.5) {
                 // Convert back to 32 bit PCM
                 for (let i = 0; i < RNNOISE_SAMPLE_LENGTH; i++) {
                     pcmFrame[i] = this._wasmInterface.HEAPF32[this._wasmPcmInputF32Index + i] / SHIFT_16_BIT_NR;
