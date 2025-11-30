@@ -114,7 +114,8 @@ export const createDefaultConfig = () => {
                 //googNoiseSuppression: true,
                 //googTypingNoiseDetection: true,
                 //googNoiseReduction: true,
-            }
+            },
+            useRnnNoise: false,
         }
     } as IClientConfig;
     applyPartialInPlace(config.rtc, ProfileRTC["default"]);

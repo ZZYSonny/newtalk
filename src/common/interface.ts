@@ -24,7 +24,8 @@ export interface IClientVideoConfig {
 
 export interface IClientAudioConfig {
     constraints: MediaTrackConstraints,
-    bitrate: number
+    bitrate: number,
+    useRnnNoise: boolean,
 }
 
 export interface IClientConfig {

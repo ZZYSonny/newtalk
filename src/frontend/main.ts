@@ -67,7 +67,7 @@ export async function createConnection(configFromServer: IClientConfig) {
             audio: config.audio.constraints
         });
 
-        if (true) {
+        if (config.audio.useRnnNoise) {
             const ctx = new AudioContext();
             await ctx.audioWorklet.addModule("./js/frontend/rnnoise.js");
             await ctx.audioWorklet.addModule("./js/frontend/vad.js");
