@@ -216,8 +216,8 @@ export function initializeWebRTCAdmin(
         if (updateProgress) updateProgress("Creating Connection...");
         if (connection) connection.close();
         connection = await createConnection(config);
+        connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
         console.info(`[RTC][0.2][Admin] Prepared PeerConnection`, connection);
-
         if (updateProgress) updateProgress("Creating Offer...");
         const offer = await connection.createOffer();
         offer.sdp = offer.sdp?.replace("useinbandfec=1", "useinbandfec=1;usedtx=1")
@@ -287,6 +287,7 @@ export function initializeWebRTCClient(
         if (updateProgress) updateProgress("Creating Connection...");
         if (connection) connection.close();
         connection = await createConnection(config);
+        connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
         console.info(`[RTC][1.2][Client] Prepared PeerConnection`, connection);
 
         if (updateProgress) updateProgress("Setting Internal States...");
@@ -294,7 +295,6 @@ export function initializeWebRTCClient(
         await connection.setRemoteDescription(offer);
         const answer = await connection.createAnswer();
         answer.sdp = answer.sdp?.replace("useinbandfec=1", "useinbandfec=1;usedtx=1")
-        connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
         await connection.setLocalDescription(answer);
         socket.emit("webrtc answer", self, answer);
         console.info(`[RTC][1.4][Client] Created, Set and Sent Answer`, answer);
