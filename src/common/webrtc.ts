@@ -82,11 +82,14 @@ export function createConnectionFromStream(
         const supportVideoCodec = RTCRtpSender.getCapabilities('video')!.codecs;
         const selectedVideoCodec = config.video.codecs.map((name) => supportVideoCodec.filter((codec) => codec.mimeType.includes(name))).flat();
         videoTransceiver.setCodecPreferences(selectedVideoCodec);
+        // Set degradation preference to maintain framerate
+        videoTransceiver.degradationPreference = 'maintain-framerate-and-resolution';
 
         // Set Preferred bitrate
         const videoSender = videoTransceiver.sender;
         const videoParameters = videoSender.getParameters();
-        videoParameters.encodings[0].maxBitrate = config.video.bitrate * 1000000;
+        videoParameters.encodings[0].maxBitrate = config.video.maxBitrate * 1000000;
+        videoParameters.encodings[0].minBitrate = config.video.minBitrate * 1000000;
         videoSender.setParameters(videoParameters);
     }
     const audioTransceiver = pc.getTransceivers().find((s) => (s.sender.track ? s.sender.track.kind === 'audio' : false))!;
