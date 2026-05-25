@@ -5,6 +5,59 @@ import ipRegex from 'ip-regex';
 let connection: RTCPeerConnection;
 export let socket: Socket;
 
+/**
+ * Modify SDP to make congestion control more aggressive:
+ * - Injects b=AS: and b=TIAS: bandwidth modifiers to signal high available bandwidth
+ * - Adds x-google-start-bitrate / x-google-max-bitrate / x-google-min-bitrate
+ *   to video codec fmtp lines so the encoder starts fast and stays high
+ */
+function modifySDP(sdp: string, config: IClientConfig): string {
+    // Apply the existing useinbandfec/usedtx modification
+    sdp = sdp.replace("useinbandfec=1", "useinbandfec=1;usedtx=1");
+
+    const lines = sdp.split('\r\n');
+    const result: string[] = [];
+    let inVideoSection = false;
+    let cLineSeenInVideo = false;
+
+    for (const line of lines) {
+        // Track which media section we're in
+        if (line.startsWith('m=video')) {
+            inVideoSection = true;
+            cLineSeenInVideo = false;
+        } else if (line.startsWith('m=')) {
+            inVideoSection = false;
+        }
+
+        // Strip existing bandwidth lines in video section (we'll add fresh ones)
+        if (inVideoSection && (line.startsWith('b=AS:') || line.startsWith('b=TIAS:'))) {
+            continue;
+        }
+
+        result.push(line);
+
+        // Inject bandwidth modifiers right after the c= line in the video section
+        if (inVideoSection && line.startsWith('c=IN ') && !cLineSeenInVideo) {
+            cLineSeenInVideo = true;
+            const bwAS = config.video.maxBitrate * 1000;       // Mbps → kbps (b=AS)
+            const bwTIAS = config.video.maxBitrate * 1000000;  // Mbps → bps  (b=TIAS)
+            result.push(`b=AS:${bwAS}`);
+            result.push(`b=TIAS:${bwTIAS}`);
+        }
+
+        // Inject x-google-* encoder hints into every video codec fmtp line
+        if (inVideoSection && line.startsWith('a=fmtp:')) {
+            const startBitrate = config.video.maxBitrate * 1000000;
+            const maxBitrate = config.video.maxBitrate * 1000000;
+            const minBitrate = config.video.minBitrate * 1000000;
+            result[result.length - 1] =
+                line + `;x-google-start-bitrate=${startBitrate};x-google-max-bitrate=${maxBitrate};x-google-min-bitrate=${minBitrate}`;
+        }
+    }
+
+    return result.join('\r\n');
+}
+
 export async function initializeSocket(url: string | null) {
     if (url) {
         socket = connect(url, { transports: ["websocket"] });
@@ -90,6 +143,10 @@ export function createConnectionFromStream(
         const videoParameters = videoSender.getParameters();
         videoParameters.encodings[0].maxBitrate = config.video.maxBitrate * 1000000;
         videoParameters.encodings[0].minBitrate = config.video.minBitrate * 1000000;
+        // Mark video as low priority — audio wins when the network is congested
+        for (const encoding of videoParameters.encodings) {
+            encoding.networkPriority = "low";
+        }
         videoSender.setParameters(videoParameters);
     }
     const audioTransceiver = pc.getTransceivers().find((s) => (s.sender.track ? s.sender.track.kind === 'audio' : false))!;
@@ -98,6 +155,10 @@ export function createConnectionFromStream(
         const audioSender = audioTransceiver.sender;
         const audioParameters = audioSender.getParameters();
         audioParameters.encodings[0].maxBitrate = config.audio.bitrate * 1000;
+        // Mark audio as high priority so it survives network glitches
+        for (const encoding of audioParameters.encodings) {
+            encoding.networkPriority = "high";
+        }
         audioSender.setParameters(audioParameters);
     }
     // Set Preferred Latency
@@ -223,7 +284,7 @@ export function initializeWebRTCAdmin(
         console.info(`[RTC][0.2][Admin] Prepared PeerConnection`, connection);
         if (updateProgress) updateProgress("Creating Offer...");
         const offer = await connection.createOffer();
-        offer.sdp = offer.sdp?.replace("useinbandfec=1", "useinbandfec=1;usedtx=1")
+        offer.sdp = modifySDP(offer.sdp!, config);
         await connection.setLocalDescription(offer);
         socket.emit("webrtc offer", self, clientConfig, offer);
         console.info(`[RTC][0.3][Admin] Created, Set and Sent Offer`, offer);
@@ -297,7 +358,7 @@ export function initializeWebRTCClient(
 
         await connection.setRemoteDescription(offer);
         const answer = await connection.createAnswer();
-        answer.sdp = answer.sdp?.replace("useinbandfec=1", "useinbandfec=1;usedtx=1")
+        answer.sdp = modifySDP(answer.sdp!, config);
         await connection.setLocalDescription(answer);
         socket.emit("webrtc answer", self, answer);
         console.info(`[RTC][1.4][Client] Created, Set and Sent Answer`, answer);
