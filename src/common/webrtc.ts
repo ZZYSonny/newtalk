@@ -1,5 +1,5 @@
 import { io, connect, Socket } from "socket.io-client";
-import { IClientConfig, IClientRTCMonitorConfig, IClientStatsConfig, IIdentity, INetReport } from "./interface";
+import { IClientConfig, IClientRTCMonitorConfig, IClientStatsConfig, IIdentity, IMonitorState, INetReport } from "./interface";
 import { createDefaultConfig, updateConfigOverride } from "./utils";
 import ipRegex from 'ip-regex';
 
@@ -174,6 +174,7 @@ async function initializeWebRTCStats(
     connection: RTCPeerConnection, config: IClientStatsConfig,
     reportConnection: (report: INetReport) => void,
     monitorConfig?: IClientRTCMonitorConfig,
+    monitorState?: IMonitorState,
     onSlowConnection?: () => void
 ) {
     const toMbps = (bytes: number) => {
@@ -201,7 +202,6 @@ async function initializeWebRTCStats(
 
     await new Promise(r => window.setTimeout(r, config.delay * 1000));
     let curID = 0;
-    let slowSpeedCount = 0;
     let lastStats = await connection.getStats();
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState === "closed") {
@@ -239,20 +239,27 @@ async function initializeWebRTCStats(
                 `${MbpsFormatter(ans.outMaxMbps)}►`
             ].join("");
 
+            if (monitorConfig?.enabled && monitorState) {
+                const profile = monitorState.currentProfile;
+                const slowSec = monitorState.slowSpeedCount * config.interval;
+                const slowTag = slowSec > 0 ? ` ${slowSec}s` : "";
+                ans.summary = `[${profile}]${slowTag} ${ans.summary}`;
+            }
+
             reportConnection(ans)
 
             // --- Slow-speed detection for renegotiation ---
-            if (onSlowConnection && monitorConfig?.enabled) {
+            if (onSlowConnection && monitorConfig?.enabled && monitorState) {
                 const slowChecks = Math.ceil(monitorConfig.slowDuration / config.interval);
                 if (ans.inMbps < monitorConfig.slowThreshold && ans.outMbps < monitorConfig.slowThreshold) {
-                    slowSpeedCount++;
-                    if (slowSpeedCount >= slowChecks) {
+                    monitorState.slowSpeedCount++;
+                    if (monitorState.slowSpeedCount >= slowChecks) {
                         console.warn(`[Stats] Speed below ${monitorConfig.slowThreshold} Mbps for >${monitorConfig.slowDuration}s — triggering renegotiation`);
                         onSlowConnection();
-                        slowSpeedCount = 0;
+                        monitorState.slowSpeedCount = 0;
                     }
                 } else {
-                    slowSpeedCount = 0;
+                    monitorState.slowSpeedCount = 0;
                 }
             }
 
@@ -267,6 +274,7 @@ function cbInitialConnected(
     updateProgress: ((state: string) => void) | null,
     postConnection: ((connection: RTCPeerConnection) => void) | null,
     reportConnection: null | ((report: INetReport) => void),
+    monitorState?: IMonitorState,
     onSlowConnection?: () => void
 ) {
     return (ev) => {
@@ -274,7 +282,7 @@ function cbInitialConnected(
         connection.onconnectionstatechange = null;
         if (updateProgress) updateProgress("Connected");
         if (postConnection) postConnection(connection);
-        if (reportConnection) initializeWebRTCStats(connection, config.rtc.stats, reportConnection, config.rtc.monitor, onSlowConnection);
+        if (reportConnection) initializeWebRTCStats(connection, config.rtc.stats, reportConnection, config.rtc.monitor, monitorState, onSlowConnection);
     }
 }
 
@@ -292,21 +300,32 @@ export function initializeWebRTCAdmin(
     let iceQueue: RTCIceCandidateInit[] = [];
     let fallbackIndex = 0;
     let isRenegotiating = false;
+    const monitorState: IMonitorState = {
+        currentProfile: "default",
+        currentProfileIndex: 0,
+        slowSpeedCount: 0,
+    };
 
     /** Pick the next profile from the fallback chain and build fresh configs */
     function buildFallbackConfigs(): { newAdmin: IClientConfig, newClient: IClientConfig } {
         const profileList = config.rtc.monitor.rtcProfileList;
+        const currentMonitor = config.rtc.monitor;
         fallbackIndex = (fallbackIndex + 1) % profileList.length;
         const profile = profileList[fallbackIndex];
         console.info(`[RTC][Renegotiate] Building configs for profile: ${profile}`);
+        monitorState.currentProfile = profile;
+        monitorState.currentProfileIndex = fallbackIndex;
+        monitorState.slowSpeedCount = 0;
         const newAdmin = updateConfigOverride(
             "all", createDefaultConfig(),
             new Map([["all.profile.rtc", profile]])
         );
+        newAdmin.rtc.monitor = { ...currentMonitor };
         const newClient = updateConfigOverride(
             "all", createDefaultConfig(),
             new Map([["all.profile.rtc", profile]])
         );
+        newClient.rtc.monitor = { ...currentMonitor };
         return { newAdmin, newClient };
     }
 
@@ -351,6 +370,9 @@ export function initializeWebRTCAdmin(
         config = adminConfig;
         currentClientConfig = clientConfig;
         fallbackIndex = 0;
+        monitorState.currentProfile = "default";
+        monitorState.currentProfileIndex = 0;
+        monitorState.slowSpeedCount = 0;
         console.info(`[RTC][0.1][Admin] Chosen config`, config);
 
         if (updateProgress) updateProgress("Creating Connection...");
@@ -376,7 +398,7 @@ export function initializeWebRTCAdmin(
         console.info(`[RTC][2.2][Admin] Set Answer`, answer);
 
         if (updateProgress) updateProgress("Waiting for Connection...");
-        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection, onSlowConnection);
+        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection, monitorState, onSlowConnection);
         for (const ice of iceQueue) {
             console.info(`[ICE][Admin] Consumed ICE From Queue`, ice);
             connection.addIceCandidate(ice);
@@ -421,6 +443,11 @@ export function initializeWebRTCClient(
 
     let config: IClientConfig;
     let iceQueue: RTCIceCandidateInit[] = [];
+    const monitorState: IMonitorState = {
+        currentProfile: "default",
+        currentProfileIndex: 0,
+        slowSpeedCount: 0,
+    };
 
     // When client detects slow speed, ask the admin to renegotiate
     const onSlowConnection = () => {
@@ -459,7 +486,7 @@ export function initializeWebRTCClient(
             connection.addIceCandidate(ice);
         }
 
-        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection, onSlowConnection);
+        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection, monitorState, onSlowConnection);
     })
 
     socket.on("webrtc ice broadcast", (other: IIdentity, ice: RTCIceCandidateInit) => {

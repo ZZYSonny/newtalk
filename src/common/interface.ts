@@ -27,6 +27,16 @@ export interface IClientRTCMonitorConfig {
     rtcProfileList: string[],
 }
 
+/** Runtime state for the bandwidth monitor (not config — not persisted/shared) */
+export interface IMonitorState {
+    /** Current profile name */
+    currentProfile: string,
+    /** Current index into rtcProfileList */
+    currentProfileIndex: number,
+    /** Consecutive slow-interval count */
+    slowSpeedCount: number,
+}
+
 export interface IClientVideoConfig {
     codecs: string[],
     maxBitrate: number,
