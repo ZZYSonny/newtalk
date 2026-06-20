@@ -164,7 +164,18 @@ export function createConnectionFromStream(
     }
     // Set Preferred Latency
     pc.getReceivers().forEach((receiver) => {
-        receiver.jitterBufferTarget = config.video.buffer;
+        if (receiver.track.kind === 'audio') {
+            // Use playoutDelayHint (a soft hint the browser can adapt) instead of
+            // a hard jitterBufferTarget to keep audio latency low for better echo
+            // cancellation, without risking audio dropouts under network jitter.
+            if ('playoutDelayHint' in receiver) {
+                (receiver as any).playoutDelayHint = 0.1; // 100ms target playout delay
+            }
+            // Leave jitterBufferTarget at browser default — the playoutDelayHint
+            // will naturally pull the jitter buffer lower without a hard cap.
+        } else {
+            receiver.jitterBufferTarget = config.video.buffer;
+        }
     })
 
     return pc;
