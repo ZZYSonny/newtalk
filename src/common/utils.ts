@@ -109,14 +109,14 @@ export const createDefaultConfig = () => {
             }
         },
         audio: {
-            bitrate: 320,
+            bitrate: 64,
             constraints: {
                 voiceIsolation: true,
                 noiseSuppression: true,
                 echoCancellation: true,
                 autoGainControl: true,
                 channelCount: 1,
-                sampleRate: 48000,
+                sampleRate: 16000,
                 echoCancellationType: "browser",
                 googEchoCancellation: true,
                 googEchoCancellation2: true,
