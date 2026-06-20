@@ -1,5 +1,6 @@
 import { io, connect, Socket } from "socket.io-client";
-import { IClientConfig, IClientStatsConfig, IIdentity, INetReport } from "./interface";
+import { IClientConfig, IClientRTCMonitorConfig, IClientStatsConfig, IIdentity, INetReport } from "./interface";
+import { createDefaultConfig, updateConfigOverride } from "./utils";
 import ipRegex from 'ip-regex';
 
 let connection: RTCPeerConnection;
@@ -171,7 +172,9 @@ export function createConnectionFromStream(
 
 async function initializeWebRTCStats(
     connection: RTCPeerConnection, config: IClientStatsConfig,
-    reportConnection: (report: INetReport) => void
+    reportConnection: (report: INetReport) => void,
+    monitorConfig?: IClientRTCMonitorConfig,
+    onSlowConnection?: () => void
 ) {
     const toMbps = (bytes: number) => {
         if (bytes) {
@@ -198,6 +201,7 @@ async function initializeWebRTCStats(
 
     await new Promise(r => window.setTimeout(r, config.delay * 1000));
     let curID = 0;
+    let slowSpeedCount = 0;
     let lastStats = await connection.getStats();
     const timer = window.setInterval(async () => {
         if (connection.iceConnectionState === "closed") {
@@ -236,6 +240,22 @@ async function initializeWebRTCStats(
             ].join("");
 
             reportConnection(ans)
+
+            // --- Slow-speed detection for renegotiation ---
+            if (onSlowConnection && monitorConfig?.enabled) {
+                const slowChecks = Math.ceil(monitorConfig.slowDuration / config.interval);
+                if (ans.inMbps < monitorConfig.slowThreshold && ans.outMbps < monitorConfig.slowThreshold) {
+                    slowSpeedCount++;
+                    if (slowSpeedCount >= slowChecks) {
+                        console.warn(`[Stats] Speed below ${monitorConfig.slowThreshold} Mbps for >${monitorConfig.slowDuration}s — triggering renegotiation`);
+                        onSlowConnection();
+                        slowSpeedCount = 0;
+                    }
+                } else {
+                    slowSpeedCount = 0;
+                }
+            }
+
             curID += 1;
             lastStats = curStats;
         }
@@ -246,14 +266,15 @@ function cbInitialConnected(
     connection: RTCPeerConnection, self: IIdentity, other: IIdentity, config: IClientConfig,
     updateProgress: ((state: string) => void) | null,
     postConnection: ((connection: RTCPeerConnection) => void) | null,
-    reportConnection: null | ((report: INetReport) => void)
+    reportConnection: null | ((report: INetReport) => void),
+    onSlowConnection?: () => void
 ) {
     return (ev) => {
         console.info(`[RTC][2.1][${self.role}]Connected to`, other);
         connection.onconnectionstatechange = null;
         if (updateProgress) updateProgress("Connected");
         if (postConnection) postConnection(connection);
-        if (reportConnection) initializeWebRTCStats(connection, config.rtc.stats, reportConnection);
+        if (reportConnection) initializeWebRTCStats(connection, config.rtc.stats, reportConnection, config.rtc.monitor, onSlowConnection);
     }
 }
 
@@ -267,7 +288,60 @@ export function initializeWebRTCAdmin(
     socket.removeAllListeners();
 
     let config: IClientConfig;
+    let currentClientConfig = clientConfig;
     let iceQueue: RTCIceCandidateInit[] = [];
+    let fallbackIndex = 0;
+    let isRenegotiating = false;
+
+    /** Pick the next profile from the fallback chain and build fresh configs */
+    function buildFallbackConfigs(): { newAdmin: IClientConfig, newClient: IClientConfig } {
+        const profileList = config.rtc.monitor.rtcProfileList;
+        fallbackIndex = (fallbackIndex + 1) % profileList.length;
+        const profile = profileList[fallbackIndex];
+        console.info(`[RTC][Renegotiate] Building configs for profile: ${profile}`);
+        const newAdmin = updateConfigOverride(
+            "all", createDefaultConfig(),
+            new Map([["all.profile.rtc", profile]])
+        );
+        const newClient = updateConfigOverride(
+            "all", createDefaultConfig(),
+            new Map([["all.profile.rtc", profile]])
+        );
+        return { newAdmin, newClient };
+    }
+
+    /** Close current connection and renegotiate with the next fallback profile */
+    async function renegotiate() {
+        if (isRenegotiating) return;
+        isRenegotiating = true;
+
+        const { newAdmin, newClient } = buildFallbackConfigs();
+        const profile = newAdmin.rtc.monitor.rtcProfileList[fallbackIndex];
+        console.info(`[RTC][Renegotiate] Starting renegotiation with profile: ${profile}`);
+
+        if (updateProgress) updateProgress(`Renegotiating (${profile})...`);
+
+        if (connection) connection.close();
+        iceQueue = [];
+
+        config = newAdmin;
+        currentClientConfig = newClient;
+
+        connection = await createConnection(config);
+        connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
+        console.info(`[RTC][Renegotiate] Prepared PeerConnection`, connection);
+
+        const offer = await connection.createOffer();
+        offer.sdp = modifySDP(offer.sdp!, config);
+        await connection.setLocalDescription(offer);
+        socket.emit("webrtc offer", self, currentClientConfig, offer);
+        console.info(`[RTC][Renegotiate] Sent new offer`);
+
+        if (updateProgress) updateProgress("Waiting for Answer...");
+        isRenegotiating = false;
+    }
+
+    const onSlowConnection = () => renegotiate();
 
     socket.on("room ready broadcast", async (room: string) => {
         console.clear();
@@ -275,6 +349,8 @@ export function initializeWebRTCAdmin(
         console.info(`[RTC][0.0][Admin] Received Ready from ${room} `);
 
         config = adminConfig;
+        currentClientConfig = clientConfig;
+        fallbackIndex = 0;
         console.info(`[RTC][0.1][Admin] Chosen config`, config);
 
         if (updateProgress) updateProgress("Creating Connection...");
@@ -286,7 +362,7 @@ export function initializeWebRTCAdmin(
         const offer = await connection.createOffer();
         offer.sdp = modifySDP(offer.sdp!, config);
         await connection.setLocalDescription(offer);
-        socket.emit("webrtc offer", self, clientConfig, offer);
+        socket.emit("webrtc offer", self, currentClientConfig, offer);
         console.info(`[RTC][0.3][Admin] Created, Set and Sent Offer`, offer);
 
         if (updateProgress) updateProgress("Waiting for Answer...");
@@ -300,7 +376,7 @@ export function initializeWebRTCAdmin(
         console.info(`[RTC][2.2][Admin] Set Answer`, answer);
 
         if (updateProgress) updateProgress("Waiting for Connection...");
-        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection);
+        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection, onSlowConnection);
         for (const ice of iceQueue) {
             console.info(`[ICE][Admin] Consumed ICE From Queue`, ice);
             connection.addIceCandidate(ice);
@@ -315,6 +391,12 @@ export function initializeWebRTCAdmin(
             console.info(`[ICE][Admin] Queued ICE`, ice);
             iceQueue.push(ice);
         }
+    })
+
+    // When the client detects slow speed, it asks us to renegotiate
+    socket.on("webrtc renegotiate", () => {
+        console.info(`[RTC][Admin] Received renegotiation request from client`);
+        renegotiate();
     })
 
     socket.on("room full message", (room) => {
@@ -340,6 +422,12 @@ export function initializeWebRTCClient(
     let config: IClientConfig;
     let iceQueue: RTCIceCandidateInit[] = [];
 
+    // When client detects slow speed, ask the admin to renegotiate
+    const onSlowConnection = () => {
+        console.warn(`[RTC][Client] Speed below threshold — requesting renegotiation from admin`);
+        socket.emit("webrtc renegotiate", self);
+    };
+
     socket.on("webrtc offer broadcast", async (other: IIdentity, clientConfig: IClientConfig, offer: RTCSessionDescriptionInit) => {
         console.clear();
 
@@ -350,6 +438,7 @@ export function initializeWebRTCClient(
 
         if (updateProgress) updateProgress("Creating Connection...");
         if (connection) connection.close();
+        iceQueue = [];  // Clear stale ICE candidates from previous connection
         connection = await createConnection(config);
         connection.onicecandidate = cbInitialIceCandidate(connection, self, config);
         console.info(`[RTC][1.2][Client] Prepared PeerConnection`, connection);
@@ -370,7 +459,7 @@ export function initializeWebRTCClient(
             connection.addIceCandidate(ice);
         }
 
-        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection);
+        connection.onconnectionstatechange = cbInitialConnected(connection, self, other, config, updateProgress, postConnection, reportConnection, onSlowConnection);
     })
 
     socket.on("webrtc ice broadcast", (other: IIdentity, ice: RTCIceCandidateInit) => {

@@ -8,11 +8,23 @@ export interface IClientRTCConfig {
     peer: RTCConfiguration,
     stack: "all" | "v4" | "v6"
     stats: IClientStatsConfig
+    monitor: IClientRTCMonitorConfig
 }
 
 export interface IClientStatsConfig {
     delay: number,
-    interval: number
+    interval: number,
+}
+
+export interface IClientRTCMonitorConfig {
+    /** Whether slow-speed monitoring and auto-renegotiation is active */
+    enabled: boolean,
+    /** Speed below this (Mbps) on both directions is considered "slow" */
+    slowThreshold: number,
+    /** Consecutive seconds of slow speed before triggering renegotiation */
+    slowDuration: number,
+    /** Ordered list of RTC profile names to cycle through on renegotiation */
+    rtcProfileList: string[],
 }
 
 export interface IClientVideoConfig {

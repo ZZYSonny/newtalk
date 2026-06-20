@@ -43,6 +43,9 @@ function updateConfigProfile(prefix: string, config: IClientConfig, dict: URLSea
     getArg(dict, prefix, "profile.rtc",
         (s: string) => applyPartialInPlace(config.rtc, ProfileRTC[s])
     )
+    getArg(dict, prefix, "profile.rtc.monitor",
+        (s: string) => applyPartialInPlace(config.rtc, ProfileRTC[s])
+    )
     getArg(dict, prefix, "profile.video",
         (s: string) => applyPartialInPlace(config.video, ProfileVideo[s])
     )
@@ -83,7 +86,13 @@ export const createDefaultConfig = () => {
             stack: "all",
             stats: {
                 delay: 2,
-                interval: 3
+                interval: 3,
+            },
+            monitor: {
+                enabled: false,
+                slowThreshold: 0.1,
+                slowDuration: 30,
+                rtcProfileList: [],
             }
         },
         video: {

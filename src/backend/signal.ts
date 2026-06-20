@@ -56,6 +56,11 @@ io.sockets.on('connection', (socket) => {
     socket.to(id.room).emit("webrtc debug broadcast", id, ...args);
   })
 
+  socket.on("webrtc renegotiate", (id: IIdentity, ...args) => {
+    console.log(`Name ${id.name} Role ${id.role} requests renegotiation in Room ${id.room}`)
+    socket.to(id.room).emit("webrtc renegotiate", id, ...args);
+  })
+
   socket.on("control refresh", () => {
     console.log(`One client sends refresh signal to all clients`)
     io.emit("page refresh")
