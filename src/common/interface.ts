@@ -41,6 +41,7 @@ export interface IClientVideoConfig {
     codecs: string[],
     maxBitrate: number,
     minBitrate: number,
+    scalabilityMode: string | null,
     buffer: number | null,
     constraints: MediaTrackConstraints,
 }

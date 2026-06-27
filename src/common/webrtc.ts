@@ -32,12 +32,33 @@ function modifySDP(sdp: string, config: IClientConfig): string {
     let inVideoSection = false;
     let cLineSeenInVideo = false;
 
+    // Track video payload types and their existing rtcp-fb lines so we can
+    // inject missing nack / nack pli when leaving the video section.
+    const videoPayloadTypes = new Set<string>();
+    const seenNack = new Set<string>();
+    const seenNackPli = new Set<string>();
+
     for (const line of lines) {
         // Track which media section we're in
         if (line.startsWith('m=video')) {
             inVideoSection = true;
             cLineSeenInVideo = false;
         } else if (line.startsWith('m=')) {
+            // Leaving previous section — inject any missing nack / nack pli
+            // for every video payload type before starting the next section.
+            if (inVideoSection) {
+                for (const pt of videoPayloadTypes) {
+                    if (!seenNack.has(pt)) {
+                        result.push(`a=rtcp-fb:${pt} nack`);
+                    }
+                    if (!seenNackPli.has(pt)) {
+                        result.push(`a=rtcp-fb:${pt} nack pli`);
+                    }
+                }
+                videoPayloadTypes.clear();
+                seenNack.clear();
+                seenNackPli.clear();
+            }
             inVideoSection = false;
         }
 
@@ -47,6 +68,25 @@ function modifySDP(sdp: string, config: IClientConfig): string {
         }
 
         result.push(line);
+
+        // Track video payload types from rtpmap (exclude rtx retransmission)
+        if (inVideoSection && line.startsWith('a=rtpmap:')) {
+            const m = line.match(/^a=rtpmap:(\d+) (\S+)/);
+            if (m && !m[2].startsWith('rtx')) {
+                videoPayloadTypes.add(m[1]);
+            }
+        }
+
+        // Track existing rtcp-fb lines for nack / nack pli
+        if (inVideoSection && line.startsWith('a=rtcp-fb:')) {
+            const m = line.match(/^a=rtcp-fb:(\d+) (.+)$/);
+            if (m) {
+                const pt = m[1];
+                const type = m[2].trim();
+                if (type === 'nack') seenNack.add(pt);
+                if (type === 'nack pli') seenNackPli.add(pt);
+            }
+        }
 
         // Inject bandwidth modifiers right after the c= line in the video
         // section — tells GCC this much bandwidth is always available so
@@ -165,6 +205,14 @@ export function createConnectionFromStream(
         const videoParameters = videoSender.getParameters();
         videoParameters.encodings[0].maxBitrate = config.video.maxBitrate * 1000000;
         videoParameters.encodings[0].minBitrate = config.video.minBitrate * 1000000;
+        // Temporal scalability: e.g. 'L1T3' splits video into 3 temporal
+        // layers so the base layer still decodes when enhancement packets are
+        // lost — no freeze, just a temporary framerate drop.  Works with
+        // VP8, VP9, and AV1.  ~5 % encoding overhead.
+        // Set to null / 'L1T1' to disable (single-layer).
+        if (config.video.scalabilityMode) {
+            (videoParameters.encodings[0] as any).scalabilityMode = config.video.scalabilityMode;
+        }
         // Mark video as low priority — audio wins when the network is congested
         for (const encoding of videoParameters.encodings) {
             encoding.networkPriority = "low";

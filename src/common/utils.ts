@@ -99,6 +99,7 @@ export const createDefaultConfig = () => {
             codecs: ["AV1", "VP9"],
             maxBitrate: 6,
             minBitrate: 1,        // 1 Mbps — SDP floor that GCC treats as always available
+            scalabilityMode: 'L1T3',
             buffer: null,
             constraints: {
                 width: { ideal: 1080 },
