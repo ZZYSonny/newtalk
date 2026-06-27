@@ -98,7 +98,7 @@ export const createDefaultConfig = () => {
         video: {
             codecs: ["AV1", "VP9"],
             maxBitrate: 6,
-            minBitrate: 0.05,
+            minBitrate: 1,        // 1 Mbps — SDP floor that GCC treats as always available
             buffer: null,
             constraints: {
                 width: { ideal: 1080 },
