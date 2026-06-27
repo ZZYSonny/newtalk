@@ -6,14 +6,26 @@ let connection: RTCPeerConnection;
 export let socket: Socket;
 
 /**
- * Modify SDP to make congestion control more aggressive:
- * - Injects b=AS: and b=TIAS: bandwidth modifiers to signal high available bandwidth
- * - Adds x-google-start-bitrate / x-google-max-bitrate / x-google-min-bitrate
- *   to video codec fmtp lines so the encoder starts fast and stays high
+ * Modify SDP to tune congestion control:
+ * - Injects b=AS: / b=TIAS: using config.video.minBitrate to give GCC a
+ *   floor — the encoder won't starve even under loss, avoiding frame freezes.
+ * - Sets x-google-start-bitrate to minBitrate so the encoder starts at the
+ *   floor immediately instead of Chrome's ~300 kbps default.
+ * - Sets x-google-max-bitrate to config.video.maxBitrate so GCC can probe
+ *   upward and discover actual bandwidth between the floor and the cap.
+ * - Sets x-google-min-bitrate to config.video.minBitrate so the encoder
+ *   has room to scale down when necessary.
  */
 function modifySDP(sdp: string, config: IClientConfig): string {
     // Apply the existing useinbandfec/usedtx modification
     sdp = sdp.replace("useinbandfec=1", "useinbandfec=1;usedtx=1");
+
+    // Floor bandwidth that GCC treats as always available, derived from
+    // config.video.minBitrate.  GCC probes upward from here to discover
+    // the true link capacity, capped by maxBitrate.
+    // config.video.minBitrate is in Mbps — convert to kbps (b=AS) and bps.
+    const floorKbps = config.video.minBitrate * 1000;
+    const floorBps  = config.video.minBitrate * 1000000;
 
     const lines = sdp.split('\r\n');
     const result: string[] = [];
@@ -36,22 +48,23 @@ function modifySDP(sdp: string, config: IClientConfig): string {
 
         result.push(line);
 
-        // Inject bandwidth modifiers right after the c= line in the video section
+        // Inject bandwidth modifiers right after the c= line in the video
+        // section — tells GCC this much bandwidth is always available so
+        // it doesn't over-back-off under packet loss.
         if (inVideoSection && line.startsWith('c=IN ') && !cLineSeenInVideo) {
             cLineSeenInVideo = true;
-            const bwAS = config.video.maxBitrate * 1000;       // Mbps → kbps (b=AS)
-            const bwTIAS = config.video.maxBitrate * 1000000;  // Mbps → bps  (b=TIAS)
-            result.push(`b=AS:${bwAS}`);
-            result.push(`b=TIAS:${bwTIAS}`);
+            result.push(`b=AS:${floorKbps}`);
+            result.push(`b=TIAS:${floorBps}`);
         }
 
-        // Inject x-google-* encoder hints into every video codec fmtp line
+        // Inject x-google-* encoder hints into every video codec fmtp line.
+        // start-bitrate at the floor so the encoder begins at a usable rate;
+        // max-bitrate at config max so GCC can probe upward from the floor.
         if (inVideoSection && line.startsWith('a=fmtp:')) {
-            const startBitrate = config.video.maxBitrate * 1000000;
             const maxBitrate = config.video.maxBitrate * 1000000;
             const minBitrate = config.video.minBitrate * 1000000;
             result[result.length - 1] =
-                line + `;x-google-start-bitrate=${startBitrate};x-google-max-bitrate=${maxBitrate};x-google-min-bitrate=${minBitrate}`;
+                line + `;x-google-start-bitrate=${floorBps};x-google-max-bitrate=${maxBitrate};x-google-min-bitrate=${minBitrate}`;
         }
     }
 
@@ -132,11 +145,20 @@ export function createConnectionFromStream(
     // Set Preferred video codec
     const videoTransceiver = pc.getTransceivers().find((s) => (s.sender.track ? s.sender.track.kind === 'video' : false))!;
     if (videoTransceiver) {
+        // Tell the encoder to prioritize frame rate over single-frame quality
+        // — essential for smooth video and avoiding freezes under congestion.
+        if (videoTransceiver.sender.track) {
+            videoTransceiver.sender.track.contentHint = 'motion';
+        }
+
         const supportVideoCodec = RTCRtpSender.getCapabilities('video')!.codecs;
         const selectedVideoCodec = config.video.codecs.map((name) => supportVideoCodec.filter((codec) => codec.mimeType.includes(name))).flat();
         videoTransceiver.setCodecPreferences(selectedVideoCodec);
-        // Set degradation preference to maintain framerate
-        videoTransceiver.degradationPreference = 'maintain-framerate-and-resolution';
+        // Prioritize smooth motion — drop resolution before dropping frames
+        // to avoid video freezes under congestion.
+        // 'maintain-framerate-and-resolution' is non-standard and can cause
+        // the encoder to freeze when bandwidth is insufficient.
+        videoTransceiver.degradationPreference = 'maintain-framerate';
 
         // Set Preferred bitrate
         const videoSender = videoTransceiver.sender;
