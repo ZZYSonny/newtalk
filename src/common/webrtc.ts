@@ -6,26 +6,25 @@ let connection: RTCPeerConnection;
 export let socket: Socket;
 
 /**
- * Modify SDP to tune congestion control:
- * - Injects b=AS: / b=TIAS: using config.video.minBitrate to give GCC a
- *   floor — the encoder won't starve even under loss, avoiding frame freezes.
- * - Sets x-google-start-bitrate to minBitrate so the encoder starts at the
- *   floor immediately instead of Chrome's ~300 kbps default.
- * - Sets x-google-max-bitrate to config.video.maxBitrate so GCC can probe
- *   upward and discover actual bandwidth between the floor and the cap.
- * - Sets x-google-min-bitrate to config.video.minBitrate so the encoder
- *   has room to scale down when necessary.
+ * Modify SDP to make congestion control aggressive:
+ * - Injects b=AS: / b=TIAS: at maxBitrate to seed GCC's bandwidth estimate
+ *   at the ceiling — GCC probes toward this target rather than being capped
+ *   by it, since the loss-based controller still reacts to real congestion.
+ * - Sets x-google-start-bitrate / x-google-max-bitrate to maxBitrate so
+ *   the encoder starts at full throttle and stays high.
+ * - Does NOT set x-google-min-bitrate — no lower constraint so GCC
+ *   scales down only as much as the link truly demands.
+ * - Guarantees a=rtcp-fb goog-remb + transport-cc (push-up feedback) and
+ *   nack + nack pli (loss recovery).  Frame freezes are handled by temporal
+ *   scalability (L1T3) instead — lost enhancement-layer packets cause a
+ *   temporary fps drop, not a freeze.
  */
 function modifySDP(sdp: string, config: IClientConfig): string {
     // Apply the existing useinbandfec/usedtx modification
     sdp = sdp.replace("useinbandfec=1", "useinbandfec=1;usedtx=1");
 
-    // Floor bandwidth that GCC treats as always available, derived from
-    // config.video.minBitrate.  GCC probes upward from here to discover
-    // the true link capacity, capped by maxBitrate.
-    // config.video.minBitrate is in Mbps — convert to kbps (b=AS) and bps.
-    const floorKbps = config.video.minBitrate * 1000;
-    const floorBps  = config.video.minBitrate * 1000000;
+    const maxBps  = config.video.maxBitrate * 1000000;
+    const maxKbps = config.video.maxBitrate * 1000;
 
     const lines = sdp.split('\r\n');
     const result: string[] = [];
@@ -33,10 +32,12 @@ function modifySDP(sdp: string, config: IClientConfig): string {
     let cLineSeenInVideo = false;
 
     // Track video payload types and their existing rtcp-fb lines so we can
-    // inject missing nack / nack pli when leaving the video section.
+    // inject missing ones when leaving the video section.
     const videoPayloadTypes = new Set<string>();
     const seenNack = new Set<string>();
     const seenNackPli = new Set<string>();
+    const seenRemb = new Set<string>();
+    const seenTcc = new Set<string>();
 
     for (const line of lines) {
         // Track which media section we're in
@@ -44,10 +45,16 @@ function modifySDP(sdp: string, config: IClientConfig): string {
             inVideoSection = true;
             cLineSeenInVideo = false;
         } else if (line.startsWith('m=')) {
-            // Leaving previous section — inject any missing nack / nack pli
+            // Leaving previous section — inject any missing rtcp-fb lines
             // for every video payload type before starting the next section.
             if (inVideoSection) {
                 for (const pt of videoPayloadTypes) {
+                    if (!seenRemb.has(pt)) {
+                        result.push(`a=rtcp-fb:${pt} goog-remb`);
+                    }
+                    if (!seenTcc.has(pt)) {
+                        result.push(`a=rtcp-fb:${pt} transport-cc`);
+                    }
                     if (!seenNack.has(pt)) {
                         result.push(`a=rtcp-fb:${pt} nack`);
                     }
@@ -58,11 +65,14 @@ function modifySDP(sdp: string, config: IClientConfig): string {
                 videoPayloadTypes.clear();
                 seenNack.clear();
                 seenNackPli.clear();
+                seenRemb.clear();
+                seenTcc.clear();
             }
             inVideoSection = false;
         }
 
-        // Strip existing bandwidth lines in video section (we'll add fresh ones)
+        // Strip existing bandwidth lines in video section (we'll inject
+        // fresh ones at maxBitrate after the c= line)
         if (inVideoSection && (line.startsWith('b=AS:') || line.startsWith('b=TIAS:'))) {
             continue;
         }
@@ -77,7 +87,7 @@ function modifySDP(sdp: string, config: IClientConfig): string {
             }
         }
 
-        // Track existing rtcp-fb lines for nack / nack pli
+        // Track existing rtcp-fb lines
         if (inVideoSection && line.startsWith('a=rtcp-fb:')) {
             const m = line.match(/^a=rtcp-fb:(\d+) (.+)$/);
             if (m) {
@@ -85,26 +95,28 @@ function modifySDP(sdp: string, config: IClientConfig): string {
                 const type = m[2].trim();
                 if (type === 'nack') seenNack.add(pt);
                 if (type === 'nack pli') seenNackPli.add(pt);
+                if (type === 'goog-remb') seenRemb.add(pt);
+                if (type === 'transport-cc') seenTcc.add(pt);
             }
         }
 
-        // Inject bandwidth modifiers right after the c= line in the video
-        // section — tells GCC this much bandwidth is always available so
-        // it doesn't over-back-off under packet loss.
+        // Inject b=AS: / b=TIAS: at maxBitrate after the c= line.
+        // These seed GCC's bandwidth estimate at the ceiling — GCC probes
+        // toward this target.  The loss-based controller still backs off
+        // when real congestion is observed, so it's not a hard floor.
         if (inVideoSection && line.startsWith('c=IN ') && !cLineSeenInVideo) {
             cLineSeenInVideo = true;
-            result.push(`b=AS:${floorKbps}`);
-            result.push(`b=TIAS:${floorBps}`);
+            result.push(`b=AS:${maxKbps}`);
+            result.push(`b=TIAS:${maxBps}`);
         }
 
         // Inject x-google-* encoder hints into every video codec fmtp line.
-        // start-bitrate at the floor so the encoder begins at a usable rate;
-        // max-bitrate at config max so GCC can probe upward from the floor.
+        // start-bitrate & max-bitrate both at maxBitrate: encoder starts at
+        // full throttle and stays high.  No min-bitrate: encoder is free to
+        // scale down naturally when GCC observes loss.
         if (inVideoSection && line.startsWith('a=fmtp:')) {
-            const maxBitrate = config.video.maxBitrate * 1000000;
-            const minBitrate = config.video.minBitrate * 1000000;
             result[result.length - 1] =
-                line + `;x-google-start-bitrate=${floorBps};x-google-max-bitrate=${maxBitrate};x-google-min-bitrate=${minBitrate}`;
+                line + `;x-google-start-bitrate=${maxBps};x-google-max-bitrate=${maxBps}`;
         }
     }
 
@@ -204,7 +216,8 @@ export function createConnectionFromStream(
         const videoSender = videoTransceiver.sender;
         const videoParameters = videoSender.getParameters();
         videoParameters.encodings[0].maxBitrate = config.video.maxBitrate * 1000000;
-        videoParameters.encodings[0].minBitrate = config.video.minBitrate * 1000000;
+        // No minBitrate — let GCC scale down naturally when loss is observed
+        // rather than constraining the encoder with an artificial floor.
         // Temporal scalability: e.g. 'L1T3' splits video into 3 temporal
         // layers so the base layer still decodes when enhancement packets are
         // lost — no freeze, just a temporary framerate drop.  Works with
